@@ -67,6 +67,15 @@ public abstract class TreeNode {
         {return(currentCapacity == 0);}
 
     /**
+     * Check if the node in question is an overflow page
+     *
+     * @return true if the node is an overflow page, false if it's not
+     */
+    public boolean isOverflow() {
+        return(nodeType == TreeNodeType.TREE_LEAF_OVERFLOW);
+    }
+
+    /**
      * Check if the node in question is a leaf (including root)
      *
      * @return true if the node is a leaf, false if it's not.
@@ -234,7 +243,7 @@ public abstract class TreeNode {
      *
      * More details in each implementation.
      *
-     * @param r *already* open pointer which points to our B+ Tree file
+     * @param r an *already* open pointer which points to our B+ Tree file
      * @param conf B+ Tree configuration
      * @throws IOException
      */

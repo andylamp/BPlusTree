@@ -35,5 +35,23 @@ leaf page:
 	-- ADD ONS SIZE: (2+8+8+4) = 22 bytes
 	
 	-- keys -- 8 bytes * max size
+	-- overflow pointers -- 8 bytes * max size
 	-- satellite data -- variable * max size
+ |
+ 
+ overflow page:
+	1Kb total
+
+ |
+	-- node type -- 2 bytes
+	-- next pointer -- 8 bytes
+	-- prev pointer -- 8 bytes
+	-- current capacity -- 4 bytes
+	
+	-- ADD ONS SIZE: (2+8+8+4) = 22 bytes
+	
+	// no need for keys, since we already know
+	// the key to that overflow page
+	satellite data -- variable * max size
+	
  |

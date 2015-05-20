@@ -18,6 +18,7 @@ public class BPlusConfiguration {
     private int leafHeaderSize;             // leaf node header size (in bytes)
     private int internalNodeHeaderSize;     // internal node header size (in bytes)
     private int leafNodeDegree;             // leaf node degree
+    private int overflowPageDegree;         // overflow page degree
     private int lookupPageSize;             // look up page size
 
     /**
@@ -37,7 +38,9 @@ public class BPlusConfiguration {
         this.lookupPageSize = pageSize - headerSize;    // lookup page size
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
+        // leaf & overflow have the same header size.
         this.leafNodeDegree = calculateDegree(keySize+entrySize, leafHeaderSize);
+        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
     }
 
     /**
@@ -46,11 +49,9 @@ public class BPlusConfiguration {
      * @param pageSize page size (default is 1024 bytes)
      * @param keySize key size (default is long [8 bytes])
      * @param entrySize satellite data (default is 10 bytes)
-     * @param pagePrefix file prefix (default vp_)
      */
     public BPlusConfiguration(int pageSize, int keySize,
-                              int entrySize,// int lookupPageSize,
-                              String pagePrefix) {
+                              int entrySize) {
         this.pageSize = pageSize;                           // page size (in bytes)
         this.entrySize = entrySize;                         // entry size (in bytes)
         this.keySize = keySize;                             // key size (in bytes)
@@ -61,7 +62,9 @@ public class BPlusConfiguration {
         this.lookupPageSize = pageSize - headerSize;  // lookup page size
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
+        // leaf & overflow have the same header size.
         this.leafNodeDegree = calculateDegree(keySize+entrySize, leafHeaderSize);
+        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
     }
 
     /**
@@ -72,7 +75,7 @@ public class BPlusConfiguration {
      * @return the node degree
      */
     private int calculateDegree(int elementSize, int elementHeaderSize)
-        {return((pageSize-elementHeaderSize)/(2*elementSize));}
+        {return((int) (((pageSize-elementHeaderSize)/(2.0*elementSize))+0.5));}
 
     public int getPageSize()
         {return pageSize;}
@@ -82,6 +85,9 @@ public class BPlusConfiguration {
 
     public int getTreeDegree()
         {return treeDegree;}
+
+    public int getOverflowPageDegree()
+        {return(overflowPageDegree);}
 
     public int getMaxInternalNodeCapacity()
         {return((2*treeDegree) - 1);}
@@ -131,5 +137,9 @@ public class BPlusConfiguration {
                 "\n\t Min cap: " + getMinLeafNodeCapacity() +
                 "\n\t Max cap: " + getMaxLeafNodeCapacity() +
                 "\n\t Total header bytes: " + leafHeaderSize);
+
+        System.out.println("\nOverflow page Degree" +
+                getOverflowPageDegree() +
+                "\n\tExpected cap: " + (2*getOverflowPageDegree()));
     }
 }

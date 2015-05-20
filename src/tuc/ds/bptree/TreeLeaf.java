@@ -6,11 +6,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 
 public class TreeLeaf extends TreeNode {
-    private boolean isOverflowPage;
     private long nextPagePointer;
     private long prevPagePointer;
     private LinkedList<String> valueList;
-
+    private LinkedList<Long> overflowList;
 
     public TreeLeaf(long nextPagePointer, long prevPagePointer,
                     TreeNodeType nodeType, long pageIndex) {
@@ -18,11 +17,26 @@ public class TreeLeaf extends TreeNode {
         if(nodeType == TreeNodeType.TREE_ROOT_LEAF && nextPagePointer > 0)
             {throw new IllegalArgumentException("Can't have leaf " +
                     "root with non-null next pointer");}
-        this.isOverflowPage = (nodeType == TreeNodeType.TREE_LEAF_OVERFLOW);
         this.nextPagePointer = nextPagePointer;
         this.prevPagePointer = prevPagePointer;
+        this.overflowList = new LinkedList<>();
         this.valueList = new LinkedList<>();
     }
+
+    public void addToOverflowList(int index, long value)
+        {overflowList.add(index, value);}
+
+    public long getOverflowPointerAt(int index)
+        {return overflowList.get(index);}
+
+    public void pushToOverflowList(long overflowPointer)
+        {overflowList.push(overflowPointer);}
+
+    public long popOverflowPointer()
+        {return(overflowList.pop());}
+
+    public long removeLastOverflowPointer()
+        {return(overflowList.removeLast());}
 
     public void addToValueList(int index, String value)
         {valueList.add(index, value);}
@@ -38,12 +52,6 @@ public class TreeLeaf extends TreeNode {
 
     public String removeLastValue()
         {return  valueList.removeLast();}
-
-    public boolean isOverflowPage()
-        {return(isOverflowPage);}
-
-    public void setOverflowPage(boolean ovfFlag)
-        {isOverflowPage = ovfFlag;}
 
     public long getNextPagePointer()
         {return(nextPagePointer);}

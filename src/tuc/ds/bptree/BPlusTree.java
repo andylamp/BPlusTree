@@ -429,6 +429,7 @@ public class BPlusTree {
         // get the page type
         TreeNodeType nt = getPageType(treeFile.readShort());
 
+        // handle internal node reading
         if(isInternalNode(nt)) {
             TreeInternalNode tnode = new TreeInternalNode(nt, index);
             int curCap = treeFile.readInt();
@@ -441,7 +442,27 @@ public class BPlusTree {
             // update the capacity
             tnode.setCurrentCapacity(curCap);
             return(tnode);
-        } else {
+        }
+        // check if we have an overflow page
+        else if(isOverflowPage(nt)) {
+            long nextptr = treeFile.readLong();
+            long prevptr = treeFile.readLong();
+            int curCap = treeFile.readInt();
+            byte[] strBuf = new byte[conf.getEntrySize()];
+
+            TreeOverflow tnode = new TreeOverflow(nextptr, prevptr, index);
+
+            // read entries
+            for(int i = 0; i < curCap; i++) {
+                treeFile.read(strBuf);
+                tnode.addToValueList(i, new String(strBuf));
+            }
+            // update capacity
+            tnode.setCurrentCapacity(curCap);
+            return(tnode);
+        }
+        // well, it must be a leaf node
+        else {
             long nextptr = treeFile.readLong();
             long prevptr = treeFile.readLong();
             int curCap = treeFile.readInt();
@@ -471,6 +492,15 @@ public class BPlusTree {
                 nt == TreeNodeType.TREE_ROOT_INTERNAL);
     }
 
+    /**
+     * Check if the node is an overflow page
+     *
+     * @param nt nodeType of the node we want to check
+     * @return return true if it's an overflow page, false if it's not.
+     */
+    public boolean isOverflowPage(TreeNodeType nt)
+        {return(nt == TreeNodeType.TREE_LEAF_OVERFLOW);}
+
     /*
     public boolean isLeaf(TreeNodeType nt) {
         return(nt == TreeNodeType.TREE_LEAF ||
@@ -487,8 +517,8 @@ public class BPlusTree {
      * @return new configuration based on read values (if enabled) or null
      * @throws IOException
      */
-    private BPlusConfiguration readFileHeader(RandomAccessFile r, String fname,
-                                              boolean generateConf) throws IOException {
+    private BPlusConfiguration readFileHeader(RandomAccessFile r, boolean generateConf)
+            throws IOException {
         r.seek(0L);
 
         // read the header number
@@ -532,7 +562,7 @@ public class BPlusTree {
 
         // finally if needed create a configuration file
         if(generateConf)
-            {return(new BPlusConfiguration(pageSize, keySize, entrySize, fname));}
+            {return(new BPlusConfiguration(pageSize, keySize, entrySize));}
         else
             {return(null);}
     }
@@ -565,7 +595,7 @@ public class BPlusTree {
             System.out.println("File already exists (size: " + treeFile.length() +
                     " bytes), trying to read it...");
             // read the header
-            conf = readFileHeader(treeFile, f.getName(), true);
+            conf = readFileHeader(treeFile, true);
             // read the lookup page
             initializeLookupPage(f.exists());
             System.out.println("File seems to be valid. Loaded OK!");
