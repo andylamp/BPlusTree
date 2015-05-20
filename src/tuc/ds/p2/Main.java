@@ -2,7 +2,6 @@ package tuc.ds.p2;
 
 import tuc.ds.bptree.BPlusConfiguration;
 import tuc.ds.bptree.BPlusTree;
-import tuc.ds.bptree.RangeResult;
 import tuc.ds.bptree.SearchResult;
 
 import java.io.IOException;
@@ -11,18 +10,13 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
         BPlusConfiguration btconf = new BPlusConfiguration();
-        System.out.println("Internal Node Degree: " +
-                btconf.getTreeDegree() +
-                "\n\t Min cap: " + btconf.getMinInternalNodeCapacity() +
-                "\n\t Max cap: " + btconf.getMaxInternalNodeCapacity());
+        BPlusTree bt = new BPlusTree(btconf, "rw");
 
-        System.out.println("Leaf Node Degree: " +
-                btconf.getLeafNodeDegree() +
-                "\n\t Min cap: " + btconf.getMinLeafNodeCapacity() +
-                "\n\t Max cap: " + btconf.getMaxLeafNodeCapacity());
+        bt.printCurrentConfiguration();
 
-
-        BPlusTree bt = new BPlusTree(btconf);
+//        for(int i = 0; i < 20; i ++) {
+//            bt.insertKey(i, "asdfasdfas");
+//        }
 
         /*
         bt.insertKey(1, "asdfasdfas");
@@ -77,9 +71,8 @@ public class Main {
         bt.insertKey(51, "asdfasdfas");
         */
 
-        for(int i = 0; i < 1000; i = i + 2) {
-            bt.insertKey(i, "asdfasdfas");
-        }
+
+
         //bt.insertKey(82, "asdfasdfas");
         //bt.insertKey(83, "asdfasdfas");
         //bt.insertKey(84, "asdfasdfas");
@@ -91,7 +84,7 @@ public class Main {
         else
             {System.out.println("Key NOT found");}
 
-        RangeResult r = bt.rangeSearch(961, 1100);
+        //RangeResult r = bt.rangeSearch(961, 1100);
 
         bt.commitTree();
 

@@ -24,15 +24,6 @@ public class TreeLeaf extends TreeNode {
         this.valueList = new LinkedList<>();
     }
 
-    public void setPairAtPosition(int index, long key, String payload) {
-        if(payload == null || key < 0 || !isAllowedEntryIndex(index)) {
-            throw new IllegalArgumentException("Can't have " +
-                    "index larger than array size or null string");
-        }
-        // set at position
-        //setKeyValuePairAt(index, key, payload);
-    }
-
     public void addToValueList(int index, String value)
         {valueList.add(index, value);}
 
@@ -79,7 +70,7 @@ public class TreeLeaf extends TreeNode {
      * @throws IOException
      */
     @Override
-    void writeNode(RandomAccessFile r, BPlusConfiguration conf)
+    public void writeNode(RandomAccessFile r, BPlusConfiguration conf)
             throws IOException {
 
         // update root index in the file

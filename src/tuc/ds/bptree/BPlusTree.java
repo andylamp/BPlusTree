@@ -10,14 +10,35 @@ import java.util.LinkedList;
 
 public class BPlusTree {
 
-    public TreeNode root;//, nBuf;
+    public TreeNode root;
     private TreeNode leftChild;
     private RandomAccessFile treeFile;
     private BPlusConfiguration conf;
     private LinkedList<Long> freeSlotPool;
     private long totalTreePages;
-    private LinkedList<String> queryResultValues;
 
+    /**
+     * Super basic constructor, create everything using their
+     * default values...
+     *
+     * @throws IOException
+     */
+    public BPlusTree() throws IOException {
+        this.conf = new BPlusConfiguration();
+        this.totalTreePages = 0L;
+        this.freeSlotPool = new LinkedList<>();
+        openFile("tree.bin", "rw+", conf);
+    }
+
+    /**
+     * Basic constructor that creates a B+ Tree instance based
+     * on an already generated configuration.
+     *
+     * Default I/O mode is to *truncate* file
+     *
+     * @param conf B+ Tree configuration instance
+     * @throws IOException
+     */
     public BPlusTree(BPlusConfiguration conf)
             throws IOException {
         this.conf = conf;
@@ -26,12 +47,40 @@ public class BPlusTree {
         openFile("tree.bin", "rw+", conf);
     }
 
-    public BPlusTree(BPlusConfiguration conf, String treeFilePath)
+    /**
+     *
+     * This constructor allows us to create a B+ tree as before
+     * given our configuration but allows us to tweak the I/O flags
+     *
+     *
+     * @param conf B+ Tree configuration instance
+     * @param mode mode of file opening
+     * @throws IOException
+     */
+    public BPlusTree(BPlusConfiguration conf, String mode)
+            throws IOException {
+        this.conf = conf;
+        this.totalTreePages = 0L;
+        this.freeSlotPool = new LinkedList<>();
+        openFile("tree.bin", mode, conf);
+    }
+
+    /**
+     * This constructor allows the most customization as it
+     * allows us to set the I/O flags as well as the file name
+     * of the resulting file.
+     *
+     * @param conf B+ Tree configuration instance
+     * @param mode I/O mode
+     * @param treeFilePath file path for the file
+     * @throws IOException
+     */
+    public BPlusTree(BPlusConfiguration conf, String mode, String treeFilePath)
             throws IOException {
         this.conf = conf;
         this.freeSlotPool = new LinkedList<>();
         this.totalTreePages = 0L;
-        openFile(treeFilePath, "rw", conf);
+        openFile(treeFilePath, mode, conf);
     }
 
     public void insertKey(long key, String value) throws IOException {
@@ -62,14 +111,35 @@ public class BPlusTree {
     }
 
     /**
-     * It requires *3* page writes plus commit of the updated page
-     * count to the file header
+     *
+     * This function is based on the similar function prototype that
+     * is given by CLRS for B-Tree but is altered to be able to be used
+     * for B+ Trees.
+     *
+     * The main difference is that when the split happens *all* keys
+     * are preserved and the first key of the right node is moved up.
+     *
+     * For example say we have the following (order is assumed to be 3):
+     *
+     *          [ k1 k2 k3 k4 ]
+     *
+     * This split would result in the following:
+     *
+     *              [ k3 ]
+     *              /   \
+     *            /      \
+     *          /         \
+     *     [ k1 k2 ]   [ k3 k4 ]
+     *
+     * This function requires at least *3* page writes plus the commit of
+     * the updated page count to the file header. In the case that after
+     * splitting we have a new root we must commit the new root index
+     * to the file header as well; this happens transparently inside
+     * writeNode method and is not explicitly done here.
      *
      * @param n internal node "parenting" the split
      * @param index index in the node n that we need to add the median
      */
-
-    //TODO
     private void splitTreeNode(TreeInternalNode n, int index) throws IOException {
 
         System.out.println("-- Splitting node with index: " +
@@ -109,8 +179,6 @@ public class BPlusTree {
             n.addToKeyArrayAt(index, keyToAdd);
             // adjust capacity
             n.incrementCapacity();
-
-
         }
         // we have a leaf
         else {
@@ -304,6 +372,15 @@ public class BPlusTree {
     }
 
 
+    /**
+     * Map the short value to an actual node type enumeration value.
+     * This paradoxically is the opposite of that we do in the similarly named
+     * function in each node.
+     *
+     * @param pval a value read from the file indicating which type of node this is
+     * @return nodeType equivalent
+     * @throws InvalidPropertiesFormatException
+     */
     private TreeNodeType getPageType(short pval)
             throws InvalidPropertiesFormatException {
         switch(pval) {
@@ -330,18 +407,24 @@ public class BPlusTree {
         }
     }
 
+    /**
+     * Calculate the page offset taking in account the
+     * for the lookup page at the start of the file.
+     *
+     * @param index index of the page
+     * @return the calculated file offset to be fed in seek.
+     */
     private long calculatePageOffset(long index)
         {return(conf.getPageSize()*(index+1));}
 
     /**
      * Read each tree node and return it as a generic type
      *
-     * @param index index in file
+     * @param index index of the page in the file
      * @return a TreeNode object referencing to the loaded page
      * @throws IOException
      */
     private TreeNode readNode(long index) throws IOException {
-        treeFile.seek(0L);
         treeFile.seek(calculatePageOffset(index));
         // get the page type
         TreeNodeType nt = getPageType(treeFile.readShort());
@@ -377,16 +460,24 @@ public class BPlusTree {
         }
     }
 
+    /**
+     * Check if the node is an internal node
+     *
+     * @param nt nodeType of the node we want to check
+     * @return return true if it's an Internal Node, false if it's not.
+     */
     private boolean isInternalNode(TreeNodeType nt) {
         return(nt == TreeNodeType.TREE_INTERNAL_NODE ||
                 nt == TreeNodeType.TREE_ROOT_INTERNAL);
     }
 
+    /*
     public boolean isLeaf(TreeNodeType nt) {
         return(nt == TreeNodeType.TREE_LEAF ||
                 nt == TreeNodeType.TREE_LEAF_OVERFLOW ||
                 nt == TreeNodeType.TREE_ROOT_LEAF);
     }
+    */
 
     /**
      * Reads an existing file and generates a B+ configuration based on the stored values
@@ -437,13 +528,31 @@ public class BPlusTree {
             {throw new InvalidStateException("Root can't have index < 0");}
 
         // read the root.
-        root = readNode(pageSize * (rootIndex+1));
+        root = readNode(rootIndex);
 
         // finally if needed create a configuration file
         if(generateConf)
             {return(new BPlusConfiguration(pageSize, keySize, entrySize, fname));}
         else
             {return(null);}
+    }
+
+
+    /**
+     * Writes the file header containing all the juicy details
+     *
+     * @param conf valid configuration
+     * @throws IOException
+     */
+    private void writeFileHeader(BPlusConfiguration conf)
+            throws IOException {
+        treeFile.seek(0L);
+        treeFile.writeInt(conf.getHeaderSize());
+        treeFile.writeInt(conf.getPageSize());
+        treeFile.writeInt(conf.getEntrySize());
+        treeFile.writeInt(conf.getKeySize());
+        treeFile.writeLong(totalTreePages);
+        treeFile.writeLong(root.getPageIndex());
     }
 
     private void openFile(String path, String mode, BPlusConfiguration opt)
@@ -453,24 +562,44 @@ public class BPlusTree {
         treeFile = new RandomAccessFile(path, stmode);
         // check if the file already exists
         if(f.exists() && !mode.contains("+")) {
+            System.out.println("File already exists (size: " + treeFile.length() +
+                    " bytes), trying to read it...");
             // read the header
             conf = readFileHeader(treeFile, f.getName(), true);
             // read the lookup page
             initializeLookupPage(f.exists());
+            System.out.println("File seems to be valid. Loaded OK!");
         }
         // if we have to start anew, do so.
         else {
-            //if(r == null) {throw new NullPointerException();}
+            System.out.println("Initializing the file...");
             treeFile.setLength(0);
             conf = opt == null ? new BPlusConfiguration() : opt;
             initializeLookupPage(false);
             createTree();
+            writeFileHeader(conf);
+            System.out.println("Done!");
         }
     }
 
+    /**
+     * Just commit the tree by actually closing the FD
+     * thus flushing the buffers.
+     *
+     * @throws IOException
+     */
     public void commitTree() throws IOException
         {this.treeFile.close();}
 
+    /**
+     * This function initializes the look-up page; in the simple
+     * case that it does not already exist it just creates an
+     * empty page by writting -1L all over it. If it exists then
+     * we load it into memory for further use.
+     *
+     * @param exists flag to indicate if the file already exists
+     * @throws IOException
+     */
     private void initializeLookupPage(boolean exists) throws IOException {
         // get to the beginning of the file after the header
         this.treeFile.seek(conf.getHeaderSize());
@@ -505,6 +634,20 @@ public class BPlusTree {
         else
             {index = conf.getPageSize() * (totalTreePages + 1); totalTreePages++; return(index);}
     }
+
+    /**
+     * Return the current configuration
+     *
+     * @return the configuration reference
+     */
+    public BPlusConfiguration getTreeConfiguration()
+        {return(conf);}
+
+    /**
+     * Prints the current configuration to stdout.
+     */
+    public void printCurrentConfiguration()
+        {conf.printConfiguration();}
 
     public void printTree() throws IOException {
         root.printNode();

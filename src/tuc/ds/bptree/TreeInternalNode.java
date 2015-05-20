@@ -4,6 +4,13 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.LinkedList;
 
+
+/**
+ *
+ * Our internal node class
+ *
+ */
+
 public class TreeInternalNode extends TreeNode {
 
     private LinkedList<Long> pointerArray;
@@ -11,16 +18,6 @@ public class TreeInternalNode extends TreeNode {
     public TreeInternalNode(TreeNodeType nodeType, long pageIndex) {
         super(nodeType, pageIndex);
         pointerArray = new LinkedList<>();
-    }
-
-
-    public void setKeyPointerPairAtPosition(int index, long key, long pointer) {
-        if(pointer < -1 || key < 0 || !isAllowedEntryIndex(index)) {
-            throw new IllegalArgumentException("Can't have index larger " +
-                    "than the array size or pointer less than -1");
-        }
-        // set at position
-        //setKeyValuePairAt(index, key, pointer);
     }
 
     public long getPointerAt(int index)
@@ -59,12 +56,12 @@ public class TreeInternalNode extends TreeNode {
      * @throws IOException
      */
     @Override
-    void writeNode(RandomAccessFile r, BPlusConfiguration conf)
+    public void writeNode(RandomAccessFile r, BPlusConfiguration conf)
             throws IOException {
 
         // update root index in the file
         if(this.isRoot()) {
-            r.seek(conf.getHeaderSize()-8L);
+            r.seek(conf.getHeaderSize()-8);
             r.writeLong(getPageIndex());
         }
 
@@ -87,7 +84,7 @@ public class TreeInternalNode extends TreeNode {
     }
 
     @Override
-    void printNode() {
+    public void printNode() {
         System.out.println("\nPrinting node of type: " +
                 getNodeType().toString() + " with index: " +
                 getPageIndex());

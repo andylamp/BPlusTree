@@ -1,17 +1,24 @@
 package tuc.ds.bptree;
 
+/**
+ *
+ * Class that stores all of the configuration parameters for our B+ Tree.
+ *
+ * You can view a description on all of the parameters below...
+ *
+ *
+ */
 public class BPlusConfiguration {
 
-    private int pageSize;
-    private int keySize;
-    private int entrySize;
-    private int treeDegree;
-    private int headerSize;
-    private int leafHeaderSize;
-    private int internalNodeHeadersize;
-    private int leafNodeDegree;
-    private int lookupPageSize;
-    private String pagePrefix;
+    private int pageSize;                   // page size (in bytes)
+    private int keySize;                    // key size (in bytes)
+    private int entrySize;                  // entry size (in bytes)
+    private int treeDegree;                 // tree degree (internal node degree)
+    private int headerSize;                 // header size (in bytes)
+    private int leafHeaderSize;             // leaf node header size (in bytes)
+    private int internalNodeHeaderSize;     // internal node header size (in bytes)
+    private int leafNodeDegree;             // leaf node degree
+    private int lookupPageSize;             // look up page size
 
     /**
      *
@@ -20,17 +27,16 @@ public class BPlusConfiguration {
      *
      */
     public BPlusConfiguration() {
-        this.pageSize = 128;                           // page size (in bytes)
+        this.pageSize = 128;                            // page size (in bytes)
         this.entrySize = 10;                            // each entry size (in bytes)
         this.keySize = 8;                               // key size (in bytes)
         this.headerSize =                               // header size in bytes
-                Integer.SIZE * 5;
-        this.internalNodeHeadersize = 6;
+                (Integer.SIZE * 4 + 2 * Long.SIZE)/8;
+        this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
-        this.pagePrefix = "vp_";                        // page file prefix
         this.lookupPageSize = pageSize - headerSize;    // lookup page size
         // now calculate the tree degree
-        this.treeDegree = calculateDegree(2*keySize, internalNodeHeadersize);
+        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         this.leafNodeDegree = calculateDegree(keySize+entrySize, leafHeaderSize);
     }
 
@@ -47,17 +53,24 @@ public class BPlusConfiguration {
                               String pagePrefix) {
         this.pageSize = pageSize;                           // page size (in bytes)
         this.entrySize = entrySize;                         // entry size (in bytes)
-        this.pagePrefix = pagePrefix;                       // page file prefix
+        this.keySize = keySize;                             // key size (in bytes)
         this.headerSize =                                   // header size in bytes
-                Integer.SIZE * 4 + 2 * Long.SIZE;
-        this.internalNodeHeadersize = 6;
+                (Integer.SIZE * 4 + 2 * Long.SIZE)/8;
+        this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
-        this.lookupPageSize = lookupPageSize - headerSize;  // lookup page size
+        this.lookupPageSize = pageSize - headerSize;  // lookup page size
         // now calculate the tree degree
-        this.treeDegree = calculateDegree(2*keySize, internalNodeHeadersize);
+        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         this.leafNodeDegree = calculateDegree(keySize+entrySize, leafHeaderSize);
     }
 
+    /**
+     * calculates the degree of a node (internal/leaf)
+     *
+     * @param elementSize the node element size (in bytes)
+     * @param elementHeaderSize the node header size (in bytes)
+     * @return the node degree
+     */
     private int calculateDegree(int elementSize, int elementHeaderSize)
         {return((pageSize-elementHeaderSize)/(2*elementSize));}
 
@@ -82,9 +95,6 @@ public class BPlusConfiguration {
     public int getMinInternalNodeCapacity()
         {return(treeDegree-1);}
 
-    public String getPagePrefix()
-        {return pagePrefix;}
-
     public int getKeySize()
         {return keySize;}
 
@@ -101,5 +111,25 @@ public class BPlusConfiguration {
         {return(headerSize);}
 
     public int getPageCountOffset()
-        {return(headerSize-8);}
+        {return(headerSize-16);}
+
+    public void printConfiguration() {
+        System.out.println("\n\nPrinting B+ Tree configuration\n");
+        System.out.println("Page size: " + pageSize + " (in bytes)");
+        System.out.println("Key size: " + keySize + " (in bytes)");
+        System.out.println("Entry size: " + entrySize + " (in bytes)");
+        System.out.println("File header size: " + headerSize + " (in bytes)");
+        System.out.println("Lookup space size: " + lookupPageSize);
+        System.out.println("\nInternal Node Degree: " +
+                getTreeDegree() +
+                "\n\t Min cap: " + getMinInternalNodeCapacity() +
+                "\n\t Max cap: " + getMaxInternalNodeCapacity() +
+                "\n\t Total header bytes: " + internalNodeHeaderSize);
+
+        System.out.println("\nLeaf Node Degree: " +
+                getLeafNodeDegree() +
+                "\n\t Min cap: " + getMinLeafNodeCapacity() +
+                "\n\t Max cap: " + getMaxLeafNodeCapacity() +
+                "\n\t Total header bytes: " + leafHeaderSize);
+    }
 }
