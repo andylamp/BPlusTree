@@ -1,0 +1,39 @@
+﻿header:
+	1Kb total	
+ |
+	-- header size -- 4 bytes
+	-- page size -- 4 bytes
+	-- entry size -- 4 bytes
+	-- key size -- 4 bytes
+	-- number of pages -- 8 bytes
+	-- root index -- 8 bytes
+	-- pool of available index spots -- page size - 32 (6 variables);;
+ | 
+ 
+internal page:
+	1Kb total
+ | 
+	-- node type -- 2 bytes
+	-- current capacity -- 4 bytes
+	
+	-- ADD ONS SIZE: (2+4) = 6 bytes
+	
+	-- keys -- 8 bytes * max size
+	-- pointers -- 8 bytes * max size
+ |
+ 
+ 
+leaf page:
+	1Kb total
+ |
+	-- node type -- 2 bytes
+	//!!-- has overflow -- 2 bytes
+	-- next pointer -- 8 bytes
+	-- prev pointer -- 8 bytes
+	-- current capacity -- 4 bytes
+	
+	-- ADD ONS SIZE: (2+8+8+4) = 22 bytes
+	
+	-- keys -- 8 bytes * max size
+	-- satellite data -- variable * max size
+ |
