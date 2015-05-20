@@ -76,10 +76,9 @@ public class BPlusTree {
                 leftChild.getPageIndex() + " of type: " +
                 leftChild.getNodeType().toString());
 
-        int setIndex = 0;
-
+        int setIndex;
         TreeNode znode;
-        long keyToAdd = -1L;
+        long keyToAdd;
         TreeNode ynode = leftChild; // x.c_{i}
         if(ynode.isInternalNode()) {
             znode = new TreeInternalNode(TreeNodeType.TREE_INTERNAL_NODE,
@@ -192,7 +191,7 @@ public class BPlusTree {
 
     public RangeResult rangeSearch(long minKey, long maxKey) throws IOException {
         SearchResult sMin = searchKey(minKey);
-        SearchResult sMax = null;
+        SearchResult sMax;
         RangeResult rangeQueryResult = new RangeResult();
         if(sMin.isFound()) {
             // read up until we find a key that's greater than maxKey
@@ -512,7 +511,7 @@ public class BPlusTree {
 
         if(root.isInternalNode()) {
             TreeInternalNode t = (TreeInternalNode)root;
-            long ptr = -1L;
+            long ptr;
             for(int i = 0; i < t.getCurrentCapacity()+1; i++) {
                 ptr = t.getPointerAt(i);
                 if(ptr < 0) {break;}
@@ -528,7 +527,7 @@ public class BPlusTree {
 
         if(t.isInternalNode()) {
             TreeInternalNode t2 = (TreeInternalNode)t;
-            long ptr = -1L;
+            long ptr;
             for(int i = 0; i < t2.getCurrentCapacity()+1; i++) {
                 ptr = t2.getPointerAt(i);
                 if(ptr < 0) {break;}
