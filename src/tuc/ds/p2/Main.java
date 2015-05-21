@@ -2,6 +2,7 @@ package tuc.ds.p2;
 
 import tuc.ds.bptree.BPlusConfiguration;
 import tuc.ds.bptree.BPlusTree;
+import tuc.ds.bptree.RangeResult;
 import tuc.ds.bptree.SearchResult;
 
 import java.io.IOException;
@@ -92,8 +93,9 @@ public class Main {
         else
             {System.out.println("Key NOT found");}
 
-        //RangeResult r = bt.rangeSearch(10, 15);
+        RangeResult r = bt.rangeSearch(20, 25, true);
 
+        RangeResult r1 = bt.rangeSearch(20, 25, false);
         bt.commitTree();
 
         /*

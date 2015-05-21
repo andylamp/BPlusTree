@@ -101,9 +101,7 @@ public class BPlusTree {
             this.root = tbuf;
 
             // split root.
-            //printTree();
             splitTreeNode(tbuf, 0);
-            //printTree();
             insertNonFull(tbuf, key, value, unique);
         }
         else
@@ -375,7 +373,45 @@ public class BPlusTree {
         }
     }
 
-    public RangeResult rangeSearch(long minKey, long maxKey, boolean unique) throws IOException {
+    /**
+     * Function to parse the overflow pages specifically for the range queries
+     *
+     * @param l leaf which contains the key with the overflow page
+     * @param index index of the key
+     * @param res where to store the results
+     * @throws IOException
+     */
+    private void parseOverflowPages(TreeLeaf l, int index, RangeResult res)
+            throws IOException {
+        TreeOverflow ovfPage = (TreeOverflow)readNode(l.getOverflowPointerAt(index));
+        int icap = 0;
+        while(icap < ovfPage.getCurrentCapacity()) {
+            res.getQueryResult().add(new KeyValueWrapper(l.getKeyAt(index),
+                    ovfPage.getValueAt(icap)));
+            icap++;
+            // check if we have more pages
+            if(icap == ovfPage.getCurrentCapacity() &&
+                    ovfPage.getNextPagePointer() != -1L) {
+                ovfPage = (TreeOverflow)readNode(ovfPage.getNextPagePointer());
+                icap = 0;
+            }
+        }
+    }
+
+    /**
+     * Handle range search queries with a bit of twist on how we handle duplicate keys.
+     *
+     *  We have two basic cases depending duplicate keys, which is basically whether
+     *  we actually return them or not.
+     *
+     * @param minKey min key of the range
+     * @param maxKey max key of the range
+     * @param unique return only *first* encounter of the (Key, Value) pairs or all?
+     * @return the results packed in a neat class for handling
+     * @throws IOException
+     */
+    public RangeResult rangeSearch(long minKey, long maxKey, boolean unique)
+            throws IOException {
         SearchResult sMin = searchKey(minKey, unique);
         SearchResult sMax;
         RangeResult rangeQueryResult = new RangeResult();
@@ -388,6 +424,11 @@ public class BPlusTree {
                 rangeQueryResult.getQueryResult().
                         add(new KeyValueWrapper(sMin.getLeaf().getKeyAt(i),
                                 sMin.getLeaf().getValueAt(i)));
+
+                // check if we have an overflow page
+                if(!unique && sMin.getLeaf().getOverflowPointerAt(i) != -1)
+                    {parseOverflowPages(sMin.getLeaf(), i, rangeQueryResult);}
+
                 i++;
 
                 // check if we need to read the next block
@@ -417,6 +458,11 @@ public class BPlusTree {
                 rangeQueryResult.getQueryResult().
                         add(new KeyValueWrapper(sMax.getLeaf().getKeyAt(i),
                                 sMax.getLeaf().getValueAt(i)));
+
+                // check if we have an overflow page
+                if(!unique && sMax.getLeaf().getOverflowPointerAt(i) != -1)
+                    {parseOverflowPages(sMax.getLeaf(), i, rangeQueryResult);}
+
                 i--;
                 // check if we need to read the next block
                 if(i < 0) {
