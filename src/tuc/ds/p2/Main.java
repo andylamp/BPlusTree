@@ -11,15 +11,17 @@ public class Main {
     public static void main(String[] args) throws IOException {
         boolean unique = true;
         BPlusConfiguration btconf = new BPlusConfiguration();
-        BPlusTree bt = new BPlusTree(btconf, "rw+");
+        BPlusTree bt = new BPlusTree(btconf, "rw");
 
         bt.printCurrentConfiguration();
 
-        for(int i = 20; i < 50; i++) {
-            bt.insertKey(i, "asdfasdfas", unique);
-        }
-
-        bt.insertKey(23, "asdfasdfas", !unique);
+//        for(int i = 20; i < 50; i++) {
+//            bt.insertKey(i, "asdfasdfas", unique);
+//        }
+//
+//        for(int i = 0; i < 5; i++) {
+//            bt.insertKey(23, "asdfasdfas", !unique);
+//        }
         //bt.insertKey(45, "asdfasdfas");
 
         /*
@@ -82,7 +84,7 @@ public class Main {
         //bt.insertKey(84, "asdfasdfas");
 
         //bt.printTree();
-        SearchResult s = bt.searchKey(1, unique);
+        SearchResult s = bt.searchKey(23, false);
         //if(s == null)
         //    {System.out.println("Key is totally outside the range of the tree");}
         if(s.isFound())

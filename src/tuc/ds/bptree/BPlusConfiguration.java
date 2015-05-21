@@ -141,7 +141,7 @@ public class BPlusConfiguration {
                 "\n\t Max cap: " + getMaxLeafNodeCapacity() +
                 "\n\t Total header bytes: " + leafHeaderSize);
 
-        System.out.println("\nOverflow page Degree" +
+        System.out.println("\nOverflow page Degree: " +
                 getOverflowPageDegree() +
                 "\n\tExpected cap: " + (2*getOverflowPageDegree()));
     }
