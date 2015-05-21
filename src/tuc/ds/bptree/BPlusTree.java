@@ -10,7 +10,7 @@ import java.util.LinkedList;
 
 public class BPlusTree {
 
-    public TreeNode root;
+    private TreeNode root;
     private TreeNode leftChild;
     private RandomAccessFile treeFile;
     private BPlusConfiguration conf;
@@ -83,7 +83,7 @@ public class BPlusTree {
         openFile(treeFilePath, mode, conf);
     }
 
-    public void insertKey(long key, String value) throws IOException {
+    public void insertKey(long key, String value, boolean unique) throws IOException {
 
         if(root == null)
             {throw new IllegalStateException("Can't insert to null tree");}
@@ -101,20 +101,20 @@ public class BPlusTree {
             this.root = tbuf;
 
             // split root.
-            printTree();
+            //printTree();
             splitTreeNode(tbuf, 0);
-            printTree();
-            insertNonFull(tbuf, key, value);
+            //printTree();
+            insertNonFull(tbuf, key, value, unique);
         }
         else
-            {insertNonFull(root, key, value);}
+            {insertNonFull(root, key, value, unique);}
     }
 
     /**
      *
      * This function is based on the similar function prototype that
-     * is given by CLRS for B-Tree but is altered to be able to be used
-     * for B+ Trees.
+     * is given by CLRS for B-Tree but is altered (quite a bit) to
+     * be able to be used for B+ Trees.
      *
      * The main difference is that when the split happens *all* keys
      * are preserved and the first key of the right node is moved up.
@@ -194,6 +194,8 @@ public class BPlusTree {
             for(int i = 0; i < setIndex; i++) {
                 znode.pushToKeyArray(ynode.removeLastKey());
                 ((TreeLeaf)znode).pushToValueList(((TreeLeaf)ynode).removeLastValue());
+                ((TreeLeaf)znode).pushToOverflowList(
+                        ((TreeLeaf) ynode).removeLastOverflowPointer());
                 znode.incrementCapacity();
                 ynode.decrementCapacity();
             }
@@ -220,7 +222,78 @@ public class BPlusTree {
 
     }
 
-    private void insertNonFull(TreeNode n, long key, String value) throws IOException {
+    /**
+     * This function is responsible handling the creation of overflow pages. We have
+     * generally two distinct cases which are the following:
+     *
+     *  * Create an overflow page directly from a B+ TreeLeaf.
+     *  * Add an overflow page directly after an existing one.
+     *
+     *  In both cases for convenience we update all the required metrics as well as
+     *  push to the newly created page the required value.
+     *
+     * @param n node to add the page
+     * @param index this is only used in the case of a leaf
+     * @param value value to push in the new page
+     * @return the new page reference
+     * @throws IOException
+     */
+    private TreeOverflow createOverflowPage(TreeNode n, int index, String value)
+            throws IOException {
+        TreeOverflow novf;
+        if(n.isOverflow()) {
+            TreeOverflow ovf = (TreeOverflow)n;
+            novf = new TreeOverflow(-1L, ovf.getPageIndex(),
+                    generateFirstAvailablePageIndex(conf));
+            // push the first value
+            novf.pushToValueList(value);
+            novf.incrementCapacity();
+            // update overflow pointer to parent node
+            ovf.setNextPagePointer(novf.getPageIndex());
+            // commit changes to new overflow page
+            novf.writeNode(treeFile, conf);
+            // commit changes to old overflow page
+            ovf.writeNode(treeFile, conf);
+        } else if(n.isLeaf()) {
+            TreeLeaf l = (TreeLeaf)n;
+            novf = new TreeOverflow(-1L, l.getPageIndex(),
+                    generateFirstAvailablePageIndex(conf));
+            // push the first value
+            novf.pushToValueList(value);
+            novf.incrementCapacity();
+            // update overflow pointer to parent node
+            l.addToOverflowList(index, novf.getPageIndex());
+            // commit changes to overflow page
+            novf.writeNode(treeFile, conf);
+            // commit changes to leaf page
+            l.writeNode(treeFile, conf);
+            // commit page counts
+        } else {
+            throw new InvalidStateException("Expected Leaf or Overflow, got instead: "
+                    + n.getNodeType().toString());
+        }
+
+        // commit page counts
+        treeFile.seek(conf.getPageCountOffset());
+        treeFile.writeLong(totalTreePages);
+        // finally return the page
+        return(novf);
+    }
+
+    /**
+     * This function is inspired but the one given in CLRS for inserting a key to
+     * a B-Tree but as splitTreeNode has been (heavily) modified in order to be used
+     * in our B+ Tree. It supports handling duplicate keys (if enabled) as well.
+     *
+     * It is able to insert the (Key, Value) paris using only one pass through the tree.
+     *
+     * @param n current node
+     * @param key key to add
+     * @param value value paired with the key
+     * @param unique allow duplicate entries for this time?
+     * @throws IOException
+     */
+    private void insertNonFull(TreeNode n, long key, String value, boolean unique) throws IOException {
         boolean goLeft = true;
         int i = n.getCurrentCapacity()-1;
         // descend down the node
@@ -231,13 +304,58 @@ public class BPlusTree {
         if(n.isLeaf()) {
             TreeLeaf l = (TreeLeaf)n;
 
-            // now add the (Key, Value) pair
-            l.addToValueList(i, value);
-            l.addToKeyArrayAt(i, key);
-            l.incrementCapacity();
+            // before we add it, let's check if the key already exists
+            // and if it does pull up (or create) the overflow page and
+            // add the value there.
+            //
+            // Not that we do *not* add the key if we have a true unique flag
+            if(n.getCurrentCapacity() > 0 && n.getKeyAt(i-1) == key) {
 
-            // commit the changes
-            l.writeNode(treeFile, conf);
+                if(unique) {
+                    System.out.println("Duplicate entry found and unique " +
+                            "flag enabled, can't add");
+                    return;
+                }
+
+                System.out.println("Duplicate found! Adding to overflow page!");
+
+                // overflow page does not exist, yet; time to create it!
+                if(l.getOverflowPointerAt(i-1) < 0)
+                    {createOverflowPage(l, (i-1), value);}
+                // page already exists, so pull it and check if it has
+                // available space, if it does all is good; otherwise we
+                // pull the next overflow page or we create another one.
+                else {
+                    TreeOverflow ovf = (TreeOverflow)readNode(l.getOverflowPointerAt(i-1));
+
+                    while(ovf.isFull(conf)) {
+                        // check if we have more, if not create
+                        if(ovf.getNextPagePointer() < 0)
+                            // create page and return
+                            {createOverflowPage(ovf, -1, value); return;}
+                        // load the next page
+                        else
+                            {ovf = (TreeOverflow)readNode(ovf.getNextPagePointer());}
+                    }
+
+                    // if the loaded page is not full then add it.
+                    ovf.pushToValueList(value);
+                    ovf.incrementCapacity();
+                    ovf.writeNode(treeFile, conf);
+                }
+            }
+            // we have a new key insert
+            else {
+                // now add the (Key, Value) pair
+                l.addToValueList(i, value);
+                l.addToKeyArrayAt(i, key);
+                // also create a NULL overflow pointer
+                l.addToOverflowList(i, -1L);
+                l.incrementCapacity();
+
+                // commit the changes
+                l.writeNode(treeFile, conf);
+            }
 
         } else {
             TreeInternalNode inode = (TreeInternalNode)n;
@@ -253,12 +371,12 @@ public class BPlusTree {
                 }
             }
 
-            insertNonFull(goLeft ? leftChild : tmpRight, key, value);
+            insertNonFull(goLeft ? leftChild : tmpRight, key, value, unique);
         }
     }
 
-    public RangeResult rangeSearch(long minKey, long maxKey) throws IOException {
-        SearchResult sMin = searchKey(minKey);
+    public RangeResult rangeSearch(long minKey, long maxKey, boolean unique) throws IOException {
+        SearchResult sMin = searchKey(minKey, unique);
         SearchResult sMax;
         RangeResult rangeQueryResult = new RangeResult();
         if(sMin.isFound()) {
@@ -293,15 +411,13 @@ public class BPlusTree {
         // will be stopped at the first key that is less than min and max values
         // given even if we did not find anything.
         else {
-            sMax = searchKey(maxKey);
-
+            sMax = searchKey(maxKey, unique);
             int i = sMax.getIndex();
-            while(sMax.getLeaf().getKeyAt(i) >= minKey) {
+            while(i >= 0 && sMax.getLeaf().getKeyAt(i) >= minKey) {
                 rangeQueryResult.getQueryResult().
                         add(new KeyValueWrapper(sMax.getLeaf().getKeyAt(i),
                                 sMax.getLeaf().getValueAt(i)));
                 i--;
-
                 // check if we need to read the next block
                 if(i < 0) {
                     // check if we do have another node to load
@@ -315,17 +431,33 @@ public class BPlusTree {
             }
 
         }
-
-
+        // finally return the result list (empty or not)
         return(rangeQueryResult);
     }
 
-    public SearchResult searchKey(long key)
+    /**
+     * Search inside the B+ Tree data structure for the requested key; based on the
+     * unique flag we have two choices which are the following:
+     *
+     *  * unique flag true: return the *first* value that matches the given key
+     *  * unique flag false: return *all* the values that match the given key
+     *
+     *  The second one including a couple more page accesses as if the key has any
+     *  duplicates they will be stored in one or multiple overflow pages depending
+     *  on the number of duplicates. Hence we have to pay for those disk accesses
+     *  as well.
+     *
+     * @param key key to match
+     * @param unique return *all* matching (Key, Value) pairs or the *first* found
+     * @return the search result
+     * @throws IOException
+     */
+    public SearchResult searchKey(long key, boolean unique)
             throws IOException
-        {return(searchKey(this.root, key));}
+        {return(searchKey(this.root, key, unique));}
 
 
-    public SearchResult searchKey(TreeNode node, long key) throws IOException {
+    private SearchResult searchKey(TreeNode node, long key, boolean unique) throws IOException {
 
         int i = 0;
 
@@ -337,16 +469,43 @@ public class BPlusTree {
             //TreeLeaf leaf = (TreeLeaf) readNode(((TreeLeaf)node).getNextPagePointer());
 
             //TreeLeaf leaf1 = (TreeLeaf) readNode(((TreeLeaf)leaf).getNextPagePointer());
-            if(i < node.getCurrentCapacity() && key == node.getKeyAt(i))
-                {return(new SearchResult((TreeLeaf)node, i, true));}
+            if(i >= 0 && i < node.getCurrentCapacity() && key == node.getKeyAt(i)) {
+
+                // we found the key, depending on the unique flag handle accordingly
+                if(unique || ((TreeLeaf)node).getOverflowPointerAt(i) == -1L )
+                    {return(new SearchResult((TreeLeaf)node, i, true));}
+                // handle the case of duplicates where actual overflow pages exist
+                else {
+                    TreeLeaf lbuf = (TreeLeaf)node;
+                    TreeOverflow ovfBuf = (TreeOverflow)readNode(lbuf.getOverflowPointerAt(i));
+                    LinkedList<String> ovfList = new LinkedList<>();
+                    // add the current one
+                    ovfList.add(lbuf.getValueAt(i));
+                    int icap = 0;
+                    // loop through all the overflow pages
+                    while(icap < ovfBuf.getCurrentCapacity()) {
+                        ovfList.add(ovfBuf.getValueAt(icap));
+                        icap++;
+                        // advance if we have another page
+                        if(icap == ovfBuf.getCurrentCapacity() &&
+                                ovfBuf.getNextPagePointer() != -1L) {
+                            ovfBuf = (TreeOverflow)readNode(ovfBuf.getNextPagePointer());
+                            icap = 0;
+                        }
+                    }
+                    // now after populating the list return the search result
+                    return(new SearchResult((TreeLeaf)node, i, ovfList));
+                }
+            }
             else
+                // we found nothing, use the unique constructor anyway.
                 {return(new SearchResult((TreeLeaf)node, i, false));}
 
         }
         // probably it's an internal node, descend to a leaf
         else {
             TreeNode t = readNode(((TreeInternalNode)node).getPointerAt(i));
-            return(searchKey(t, key));
+            return(searchKey(t, key, unique));
         }
 
     }
@@ -449,7 +608,6 @@ public class BPlusTree {
             long prevptr = treeFile.readLong();
             int curCap = treeFile.readInt();
             byte[] strBuf = new byte[conf.getEntrySize()];
-
             TreeOverflow tnode = new TreeOverflow(nextptr, prevptr, index);
 
             // read entries
@@ -472,6 +630,7 @@ public class BPlusTree {
             // read entries
             for(int i = 0; i < curCap; i++) {
                 tnode.addToKeyArrayAt(i, treeFile.readLong());
+                tnode.addToOverflowList(i, treeFile.readLong());
                 treeFile.read(strBuf);
                 tnode.addToValueList(i, new String(strBuf));
             }
@@ -585,6 +744,16 @@ public class BPlusTree {
         treeFile.writeLong(root.getPageIndex());
     }
 
+    /**
+     * Opens a file descriptor to our B+ Tree storage file; it can
+     * handle already existing files as well without recreating them
+     * unless explcitly stated.
+     *
+     * @param path file path
+     * @param mode mode of opening (basically to truncate it or not)
+     * @param opt configuration reference
+     * @throws IOException
+     */
     private void openFile(String path, String mode, BPlusConfiguration opt)
             throws IOException {
         File f = new File(path);

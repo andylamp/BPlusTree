@@ -39,8 +39,10 @@ public abstract class TreeNode {
      * @return true is the node is full false if it's not.
      */
     public boolean isFull(BPlusConfiguration conf) {
-        if(isLeaf())
-            {return(conf.getMaxLeafNodeCapacity() == currentCapacity);}
+        if(isLeaf()) {
+            return(isOverflow() ?
+                    (conf.getMaxOverflowNodeCapacity() == currentCapacity) :
+                    (conf.getMaxLeafNodeCapacity() == currentCapacity));}
         else
             // internal
             {return(conf.getMaxInternalNodeCapacity() == currentCapacity);}

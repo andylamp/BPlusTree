@@ -105,6 +105,7 @@ public class TreeLeaf extends TreeNode {
         // now write the Key/Value pairs
         for(int i = 0; i < getCurrentCapacity(); i++) {
             r.writeLong(getKeyAt(i));
+            r.writeLong(getOverflowPointerAt(i));
             r.write(valueList.get(i).getBytes(StandardCharsets.UTF_8));
         }
 
@@ -119,11 +120,12 @@ public class TreeLeaf extends TreeNode {
         System.out.println("Next pointer (index): " + getNextPagePointer());
         System.out.println("Prev pointer (index): " + getPrevPagePointer());
 
-        System.out.println("\nPrinting stored (Key, Value) pairs:");
+        System.out.println("\nPrinting stored (Key, Value, ovf) tuples:");
         for(int i = 0; i < keyArray.size(); i++) {
             System.out.print(" (" +
                     keyArray.get(i).toString() + ", " +
-                    valueList.get(i) + ") ");
+                    valueList.get(i) + ", " +
+                    overflowList.get(i) + ") ");
         }
         System.out.println("\n");
     }

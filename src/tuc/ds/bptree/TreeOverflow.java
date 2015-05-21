@@ -32,8 +32,14 @@ public class TreeOverflow extends TreeNode {
         this.prevPagePointer = prevPagePointer;
     }
 
+    public void pushToValueList(String value)
+        {valueList.push(value);}
+
     public void addToValueList(int index, String value)
         {valueList.add(index, value);}
+
+    public String getValueAt(int index)
+        {return valueList.get(index);}
 
     public long getNextPagePointer()
         {return(nextPagePointer);}

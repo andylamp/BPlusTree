@@ -39,7 +39,7 @@ public class BPlusConfiguration {
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         // leaf & overflow have the same header size.
-        this.leafNodeDegree = calculateDegree(keySize+entrySize, leafHeaderSize);
+        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
         this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
     }
 
@@ -63,7 +63,7 @@ public class BPlusConfiguration {
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         // leaf & overflow have the same header size.
-        this.leafNodeDegree = calculateDegree(keySize+entrySize, leafHeaderSize);
+        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
         this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
     }
 
@@ -94,6 +94,9 @@ public class BPlusConfiguration {
 
     public int getMaxLeafNodeCapacity()
         {return((2*leafNodeDegree) - 1);}
+
+    public int getMaxOverflowNodeCapacity()
+        {return((2*overflowPageDegree)-1);}
 
     public int getMinLeafNodeCapacity()
         {return(leafNodeDegree-1);}
