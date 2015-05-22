@@ -56,7 +56,8 @@ public class TreeInternalNode extends TreeNode {
      * @throws IOException
      */
     @Override
-    public void writeNode(RandomAccessFile r, BPlusConfiguration conf)
+    public void writeNode(RandomAccessFile r, BPlusConfiguration conf,
+                          BPlusTreePerformanceCounter bPerf)
             throws IOException {
 
         // update root index in the file
@@ -81,6 +82,8 @@ public class TreeInternalNode extends TreeNode {
         }
         // final pointer.
         r.writeLong(getPointerAt(getCurrentCapacity()));
+
+        bPerf.incrementTotalInternalNodeWrites();
     }
 
     @Override
@@ -89,7 +92,8 @@ public class TreeInternalNode extends TreeNode {
                 getNodeType().toString() + " with index: " +
                 getPageIndex());
 
-        System.out.println("Current node capacity is: " + getCurrentCapacity());
+        System.out.println("Current node capacity is: " +
+                getCurrentCapacity());
 
         System.out.println("\nPrinting stored Keys:");
         for(Long i : keyArray)

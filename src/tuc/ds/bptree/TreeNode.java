@@ -249,7 +249,8 @@ public abstract class TreeNode {
      * @param conf B+ Tree configuration
      * @throws IOException
      */
-    public abstract void writeNode(RandomAccessFile r, BPlusConfiguration conf)
+    public abstract void writeNode(RandomAccessFile r, BPlusConfiguration conf,
+                                   BPlusTreePerformanceCounter bPerf)
             throws IOException;
 
     /**

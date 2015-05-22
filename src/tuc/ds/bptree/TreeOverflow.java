@@ -67,7 +67,9 @@ public class TreeOverflow extends TreeNode {
      * @throws IOException
      */
     @Override
-    public void writeNode(RandomAccessFile r, BPlusConfiguration conf) throws IOException {
+    public void writeNode(RandomAccessFile r, BPlusConfiguration conf,
+                          BPlusTreePerformanceCounter bPerf)
+            throws IOException {
         // account for the header page as well.
         r.seek((getPageIndex()+1)*conf.getPageSize());
 
@@ -86,6 +88,8 @@ public class TreeOverflow extends TreeNode {
         // now write the values
         for(int i = 0; i < getCurrentCapacity(); i++)
             {r.write(valueList.get(i).getBytes(StandardCharsets.UTF_8));}
+
+        bPerf.incrementTotalOverflowNodeWrites();
     }
 
     @Override

@@ -28,7 +28,7 @@ public class BPlusConfiguration {
      *
      */
     public BPlusConfiguration() {
-        this.pageSize = 128;                            // page size (in bytes)
+        this.pageSize = 1024;                           // page size (in bytes)
         this.entrySize = 10;                            // each entry size (in bytes)
         this.keySize = 8;                               // key size (in bytes)
         this.headerSize =                               // header size in bytes
@@ -41,6 +41,7 @@ public class BPlusConfiguration {
         // leaf & overflow have the same header size.
         this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
         this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
+        checkDegreeValidity();
     }
 
     /**
@@ -65,6 +66,7 @@ public class BPlusConfiguration {
         // leaf & overflow have the same header size.
         this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
         this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
+        checkDegreeValidity();
     }
 
     /**
@@ -76,6 +78,16 @@ public class BPlusConfiguration {
      */
     private int calculateDegree(int elementSize, int elementHeaderSize)
         {return((int) (((pageSize-elementHeaderSize)/(2.0*elementSize))+0.5));}
+
+    /**
+     *
+     * Little function that checks if we have any degree < 2 (which is not allowed)
+     *
+     */
+    private void checkDegreeValidity() {
+        if(treeDegree < 2 || leafNodeDegree < 2 || overflowPageDegree < 2)
+            {throw new IllegalArgumentException("Can't have a degree < 2");}
+    }
 
     public int getPageSize()
         {return pageSize;}
@@ -128,7 +140,7 @@ public class BPlusConfiguration {
         System.out.println("Key size: " + keySize + " (in bytes)");
         System.out.println("Entry size: " + entrySize + " (in bytes)");
         System.out.println("File header size: " + headerSize + " (in bytes)");
-        System.out.println("Lookup space size: " + lookupPageSize);
+        System.out.println("Lookup space size: " + lookupPageSize + " (in bytes)");
         System.out.println("\nInternal Node Degree: " +
                 getTreeDegree() +
                 "\n\t Min cap: " + getMinInternalNodeCapacity() +

@@ -75,10 +75,12 @@ public class TreeLeaf extends TreeNode {
      *  -- key/value pairs -- (max size * (key size + satellite size))
      *
      * @param r pointer to *opened* B+ tree file
+     * @param conf configuration parameter
      * @throws IOException
      */
     @Override
-    public void writeNode(RandomAccessFile r, BPlusConfiguration conf)
+    public void writeNode(RandomAccessFile r, BPlusConfiguration conf,
+                          BPlusTreePerformanceCounter bPerf)
             throws IOException {
 
         // update root index in the file
@@ -108,7 +110,7 @@ public class TreeLeaf extends TreeNode {
             r.writeLong(getOverflowPointerAt(i));
             r.write(valueList.get(i).getBytes(StandardCharsets.UTF_8));
         }
-
+        bPerf.incrementTotalLeafNodeWrites();
     }
 
     @Override

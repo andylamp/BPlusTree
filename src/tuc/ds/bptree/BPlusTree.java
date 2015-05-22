@@ -16,6 +16,7 @@ public class BPlusTree {
     private BPlusConfiguration conf;
     private LinkedList<Long> freeSlotPool;
     private long totalTreePages;
+    private BPlusTreePerformanceCounter bPerf = null;
 
     /**
      * Super basic constructor, create everything using their
@@ -27,6 +28,8 @@ public class BPlusTree {
         this.conf = new BPlusConfiguration();
         this.totalTreePages = 0L;
         this.freeSlotPool = new LinkedList<>();
+        bPerf = new BPlusTreePerformanceCounter(false);
+        bPerf.setBTree(this);
         openFile("tree.bin", "rw+", conf);
     }
 
@@ -37,13 +40,16 @@ public class BPlusTree {
      * Default I/O mode is to *truncate* file
      *
      * @param conf B+ Tree configuration instance
+     * @param bPerf performance counter class
      * @throws IOException
      */
-    public BPlusTree(BPlusConfiguration conf)
+    public BPlusTree(BPlusConfiguration conf, BPlusTreePerformanceCounter bPerf)
             throws IOException {
         this.conf = conf;
         this.totalTreePages = 0L;
         this.freeSlotPool = new LinkedList<>();
+        this.bPerf = bPerf;
+        bPerf.setBTree(this);
         openFile("tree.bin", "rw+", conf);
     }
 
@@ -55,13 +61,17 @@ public class BPlusTree {
      *
      * @param conf B+ Tree configuration instance
      * @param mode mode of file opening
+     * @param bPerf performance counter class
      * @throws IOException
      */
-    public BPlusTree(BPlusConfiguration conf, String mode)
+    public BPlusTree(BPlusConfiguration conf, String mode,
+                     BPlusTreePerformanceCounter bPerf)
             throws IOException {
         this.conf = conf;
         this.totalTreePages = 0L;
         this.freeSlotPool = new LinkedList<>();
+        this.bPerf = bPerf;
+        bPerf.setBTree(this);
         openFile("tree.bin", mode, conf);
     }
 
@@ -73,16 +83,29 @@ public class BPlusTree {
      * @param conf B+ Tree configuration instance
      * @param mode I/O mode
      * @param treeFilePath file path for the file
+     * @param bPerf performance counter class
      * @throws IOException
      */
-    public BPlusTree(BPlusConfiguration conf, String mode, String treeFilePath)
+    public BPlusTree(BPlusConfiguration conf, String mode,
+                     String treeFilePath, BPlusTreePerformanceCounter bPerf)
             throws IOException {
         this.conf = conf;
         this.freeSlotPool = new LinkedList<>();
         this.totalTreePages = 0L;
+        this.bPerf = bPerf;
+        bPerf.setBTree(this);
         openFile(treeFilePath, mode, conf);
     }
 
+    /**
+     * Insert the key into the tree while also providing the flexibility
+     * of having unique keys or not at will.
+     *
+     * @param key key to add
+     * @param value value of the key
+     * @param unique allow duplicates for this run?
+     * @throws IOException
+     */
     public void insertKey(long key, String value, boolean unique) throws IOException {
 
         if(root == null)
@@ -106,6 +129,7 @@ public class BPlusTree {
         }
         else
             {insertNonFull(root, key, value, unique);}
+        bPerf.incrementTotalInsertions();
     }
 
     /**
@@ -140,9 +164,9 @@ public class BPlusTree {
      */
     private void splitTreeNode(TreeInternalNode n, int index) throws IOException {
 
-        System.out.println("-- Splitting node with index: " +
-                leftChild.getPageIndex() + " of type: " +
-                leftChild.getNodeType().toString());
+        //System.out.println("-- Splitting node with index: " +
+        //        leftChild.getPageIndex() + " of type: " +
+        //        leftChild.getNodeType().toString());
 
         int setIndex;
         TreeNode znode;
@@ -151,6 +175,9 @@ public class BPlusTree {
         if(ynode.isInternalNode()) {
             znode = new TreeInternalNode(TreeNodeType.TREE_INTERNAL_NODE,
                     generateFirstAvailablePageIndex(conf));
+
+            bPerf.incrementTotalInternalNodes();
+
 
             setIndex =  conf.getTreeDegree()-1;
 
@@ -168,8 +195,11 @@ public class BPlusTree {
             ynode.setCurrentCapacity(setIndex);
 
             // it it was the root, invalidate it and make it a regular internal node
-            if(ynode.isRoot())
-                {ynode.setNodeType(TreeNodeType.TREE_INTERNAL_NODE);}
+            if(ynode.isRoot()) {
+                ynode.setNodeType(TreeNodeType.TREE_INTERNAL_NODE);
+                bPerf.incrementRootSplits();
+            }
+            bPerf.incrementInternalNodeSplits();
 
             // update pointer at n_{index+1}
             n.addPointerAt(index, znode.getPageIndex());
@@ -183,6 +213,8 @@ public class BPlusTree {
             znode = new TreeLeaf(((TreeLeaf)ynode).getNextPagePointer(),
                     ynode.getPageIndex(), TreeNodeType.TREE_LEAF,
                     generateFirstAvailablePageIndex(conf));
+
+            bPerf.incrementTotalLeaves();
 
             // update pointers in ynode, only have to update next pointer
             ((TreeLeaf)ynode).setNextPagePointer(znode.getPageIndex());
@@ -199,11 +231,14 @@ public class BPlusTree {
             }
 
             // it it was the root, invalidate it and make it a regular leaf
-            if(ynode.isRoot())
-                {ynode.setNodeType(TreeNodeType.TREE_LEAF);}
+            if(ynode.isRoot()) {
+                ynode.setNodeType(TreeNodeType.TREE_LEAF);
+                bPerf.incrementRootSplits();
+            }
+            bPerf.incrementTotalLeafSplits();
 
             // update pointer at n_{index+1}
-            n.addPointerAt(index+1, znode.getPageIndex());
+            n.addPointerAt(index + 1, znode.getPageIndex());
             // update key value at n[index]
             n.addToKeyArrayAt(index, znode.getKeyAt(0));
             // adjust capacity
@@ -211,9 +246,9 @@ public class BPlusTree {
         }
 
         // commit the changes
-        znode.writeNode(treeFile, conf);
-        ynode.writeNode(treeFile, conf);
-        n.writeNode(treeFile, conf);
+        znode.writeNode(treeFile, conf, bPerf);
+        ynode.writeNode(treeFile, conf, bPerf);
+        n.writeNode(treeFile, conf, bPerf);
         // commit page counts
         treeFile.seek(conf.getPageCountOffset());
         treeFile.writeLong(totalTreePages);
@@ -249,9 +284,9 @@ public class BPlusTree {
             // update overflow pointer to parent node
             ovf.setNextPagePointer(novf.getPageIndex());
             // commit changes to new overflow page
-            novf.writeNode(treeFile, conf);
+            novf.writeNode(treeFile, conf, bPerf);
             // commit changes to old overflow page
-            ovf.writeNode(treeFile, conf);
+            ovf.writeNode(treeFile, conf, bPerf);
         } else if(n.isLeaf()) {
             TreeLeaf l = (TreeLeaf)n;
             novf = new TreeOverflow(-1L, l.getPageIndex(),
@@ -262,15 +297,16 @@ public class BPlusTree {
             // update overflow pointer to parent node
             l.addToOverflowList(index, novf.getPageIndex());
             // commit changes to overflow page
-            novf.writeNode(treeFile, conf);
+            novf.writeNode(treeFile, conf, bPerf);
             // commit changes to leaf page
-            l.writeNode(treeFile, conf);
+            l.writeNode(treeFile, conf, bPerf);
             // commit page counts
         } else {
             throw new InvalidStateException("Expected Leaf or Overflow, got instead: "
                     + n.getNodeType().toString());
         }
 
+        bPerf.incrementTotalOverflowPages();
         // commit page counts
         treeFile.seek(conf.getPageCountOffset());
         treeFile.writeLong(totalTreePages);
@@ -291,7 +327,8 @@ public class BPlusTree {
      * @param unique allow duplicate entries for this time?
      * @throws IOException
      */
-    private void insertNonFull(TreeNode n, long key, String value, boolean unique) throws IOException {
+    private void insertNonFull(TreeNode n, long key, String value, boolean unique)
+            throws IOException {
         boolean goLeft = true;
         int i = n.getCurrentCapacity()-1;
         // descend down the node
@@ -307,15 +344,15 @@ public class BPlusTree {
             // add the value there.
             //
             // Not that we do *not* add the key if we have a true unique flag
-            if(n.getCurrentCapacity() > 0 && n.getKeyAt(i-1) == key) {
+            if(n.getCurrentCapacity() > 0 && n.getKeyAt((i == 0 ? i : i-1)) == key) {
 
                 if(unique) {
-                    System.out.println("Duplicate entry found and unique " +
-                            "flag enabled, can't add");
+                    //System.out.println("Duplicate entry found and unique " +
+                    //        "flag enabled, can't add");
                     return;
                 }
 
-                System.out.println("Duplicate found! Adding to overflow page!");
+                //System.out.println("Duplicate found! Adding to overflow page!");
 
                 // overflow page does not exist, yet; time to create it!
                 if(l.getOverflowPointerAt(i-1) < 0)
@@ -339,7 +376,7 @@ public class BPlusTree {
                     // if the loaded page is not full then add it.
                     ovf.pushToValueList(value);
                     ovf.incrementCapacity();
-                    ovf.writeNode(treeFile, conf);
+                    ovf.writeNode(treeFile, conf, bPerf);
                 }
             }
             // we have a new key insert
@@ -352,7 +389,7 @@ public class BPlusTree {
                 l.incrementCapacity();
 
                 // commit the changes
-                l.writeNode(treeFile, conf);
+                l.writeNode(treeFile, conf, bPerf);
             }
 
         } else {
@@ -477,6 +514,7 @@ public class BPlusTree {
             }
 
         }
+        bPerf.incrementTotalRangeQueries();
         // finally return the result list (empty or not)
         return(rangeQueryResult);
     }
@@ -500,10 +538,11 @@ public class BPlusTree {
      */
     public SearchResult searchKey(long key, boolean unique)
             throws IOException
-        {return(searchKey(this.root, key, unique));}
+        {bPerf.incrementTotalSearches(); return(searchKey(this.root, key, unique));}
 
 
-    private SearchResult searchKey(TreeNode node, long key, boolean unique) throws IOException {
+    private SearchResult searchKey(TreeNode node, long key, boolean unique)
+            throws IOException {
 
         int i = 0;
 
@@ -570,8 +609,10 @@ public class BPlusTree {
             root = new TreeLeaf(-1, -1,
                     TreeNodeType.TREE_ROOT_LEAF,
                     generateFirstAvailablePageIndex(conf));
+            bPerf.incrementTotalPages();
+            bPerf.incrementTotalLeaves();
             // write the file
-            root.writeNode(treeFile, conf);
+            root.writeNode(treeFile, conf, bPerf);
         }
         return(root);
     }
@@ -630,6 +671,7 @@ public class BPlusTree {
      * @throws IOException
      */
     private TreeNode readNode(long index) throws IOException {
+
         treeFile.seek(calculatePageOffset(index));
         // get the page type
         TreeNodeType nt = getPageType(treeFile.readShort());
@@ -646,6 +688,7 @@ public class BPlusTree {
             tnode.addPointerAt(curCap, treeFile.readLong());
             // update the capacity
             tnode.setCurrentCapacity(curCap);
+            bPerf.incrementTotalInternalNodeReads();
             return(tnode);
         }
         // check if we have an overflow page
@@ -663,6 +706,7 @@ public class BPlusTree {
             }
             // update capacity
             tnode.setCurrentCapacity(curCap);
+            bPerf.incrementTotalOverflowReads();
             return(tnode);
         }
         // well, it must be a leaf node
@@ -682,6 +726,7 @@ public class BPlusTree {
             }
             // update capacity
             tnode.setCurrentCapacity(curCap);
+            bPerf.incrementTotalLeafNodeReads();
             return(tnode);
         }
     }
@@ -818,6 +863,7 @@ public class BPlusTree {
         // if we have to start anew, do so.
         else {
             System.out.println("Initializing the file...");
+            System.out.println("Tracking I/O performance as well");
             treeFile.setLength(0);
             conf = opt == null ? new BPlusConfiguration() : opt;
             initializeLookupPage(false);
@@ -839,7 +885,7 @@ public class BPlusTree {
     /**
      * This function initializes the look-up page; in the simple
      * case that it does not already exist it just creates an
-     * empty page by writting -1L all over it. If it exists then
+     * empty page by witting -1L all over it. If it exists then
      * we load it into memory for further use.
      *
      * @param exists flag to indicate if the file already exists
