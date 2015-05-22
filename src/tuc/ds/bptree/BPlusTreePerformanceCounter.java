@@ -285,7 +285,7 @@ public class BPlusTreePerformanceCounter {
     public int[] searchIO(long key, boolean unique, boolean verbose)
             throws IOException {
         startPageTracking();
-        bt.searchKey(key, unique);
+        SearchResult r = bt.searchKey(key, unique);
         if(verbose) {
             System.out.println("Total page reads for this search: " + getPageReads());
             System.out.println("Total page writes for this search: " + getPageWrites());
@@ -300,7 +300,7 @@ public class BPlusTreePerformanceCounter {
                     getInterminentOverflowPageReads() + ", " +
                     getInterminentOverflowPageWrites());
         }
-        int res[] = new int[8];
+        int res[] = new int[9];
         res[0] = getPageReads();
         res[1] = getPageWrites();
         res[2] = getInterminentInternalPageReads();
@@ -309,6 +309,7 @@ public class BPlusTreePerformanceCounter {
         res[5] = getInterminentLeafPageWrites();
         res[6] = getInterminentOverflowPageReads();
         res[7] = getInterminentOverflowPageWrites();
+        res[8] = r.isFound() ? 1 : 0;
         totalSearchReads += pageReads;
         totalSearchWrites += pageWrites;
 

@@ -67,7 +67,7 @@ public class TreeInternalNode extends TreeNode {
         }
 
         // account for the header page as well.
-        r.seek((getPageIndex()+1)*conf.getPageSize());
+        r.seek(getPageIndex());
 
         // write the node type
         r.writeShort(getPageType());
@@ -82,6 +82,10 @@ public class TreeInternalNode extends TreeNode {
         }
         // final pointer.
         r.writeLong(getPointerAt(getCurrentCapacity()));
+
+        // annoying correction
+        if(r.length() < getPageIndex()+conf.getPageSize())
+            {r.setLength(getPageIndex()+conf.getPageSize());}
 
         bPerf.incrementTotalInternalNodeWrites();
     }

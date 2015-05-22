@@ -29,7 +29,7 @@ public class BPlusConfiguration {
      */
     public BPlusConfiguration() {
         this.pageSize = 1024;                           // page size (in bytes)
-        this.entrySize = 10;                            // each entry size (in bytes)
+        this.entrySize = 20;                            // each entry size (in bytes)
         this.keySize = 8;                               // key size (in bytes)
         this.headerSize =                               // header size in bytes
                 (Integer.SIZE * 4 + 2 * Long.SIZE)/8;
@@ -77,7 +77,7 @@ public class BPlusConfiguration {
      * @return the node degree
      */
     private int calculateDegree(int elementSize, int elementHeaderSize)
-        {return((int) (((pageSize-elementHeaderSize)/(2.0*elementSize))+0.5));}
+        {return((int) (((pageSize-elementHeaderSize)/(2.0*elementSize))/*+0.5*/));}
 
     /**
      *

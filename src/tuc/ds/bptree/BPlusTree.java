@@ -164,9 +164,9 @@ public class BPlusTree {
      */
     private void splitTreeNode(TreeInternalNode n, int index) throws IOException {
 
-        //System.out.println("-- Splitting node with index: " +
-        //        leftChild.getPageIndex() + " of type: " +
-        //        leftChild.getNodeType().toString());
+//        System.out.println("-- Splitting node with index: " +
+//                leftChild.getPageIndex() + " of type: " +
+//                leftChild.getNodeType().toString());
 
         int setIndex;
         TreeNode znode;
@@ -396,7 +396,6 @@ public class BPlusTree {
             TreeInternalNode inode = (TreeInternalNode)n;
             leftChild = readNode(inode.getPointerAt(i));
 
-            //printTree();
             TreeNode tmpRight = null;
             if(leftChild.isFull(conf)) {
                 splitTreeNode(inode, i);
@@ -671,8 +670,8 @@ public class BPlusTree {
      * @throws IOException
      */
     private TreeNode readNode(long index) throws IOException {
-
-        treeFile.seek(calculatePageOffset(index));
+        //calculatePageOffset(index)
+        treeFile.seek(index);
         // get the page type
         TreeNodeType nt = getPageType(treeFile.readShort());
 

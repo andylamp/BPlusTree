@@ -59,10 +59,11 @@ public class TestRunner {
         int vmin = 1;
         int vmax = 99999;
         boolean verbose = false;
+        boolean unique = false;
         String val = "asdfasdfas";
         int qrange = 150;
         runDefaultTrials(trials, vmin, vmax, qrange, val,
-                false, verbose, bPerf);
+                unique, verbose, bPerf);
     }
 
     /**
@@ -234,7 +235,7 @@ public class TestRunner {
                                         BPlusTreePerformanceCounter bPerf)
             throws IOException {
         TrialsClass.runSearchTrial(trials, vmin, vmax, unique, bPerf, verbose);
-        TrialsClass.runInsertTrial(trials, vmin, vmax, val, !unique, bPerf, verbose);
+        TrialsClass.runInsertTrial(trials, vmin, vmax, val, unique, bPerf, verbose);
         TrialsClass.runRangeQueryTrial(trials, vmin, vmax, qrange, unique, bPerf, verbose);
     }
 }

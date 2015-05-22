@@ -71,7 +71,7 @@ public class TreeOverflow extends TreeNode {
                           BPlusTreePerformanceCounter bPerf)
             throws IOException {
         // account for the header page as well.
-        r.seek((getPageIndex()+1)*conf.getPageSize());
+        r.seek(getPageIndex());
 
         // now write the node type
         r.writeShort(getPageType());
@@ -88,6 +88,10 @@ public class TreeOverflow extends TreeNode {
         // now write the values
         for(int i = 0; i < getCurrentCapacity(); i++)
             {r.write(valueList.get(i).getBytes(StandardCharsets.UTF_8));}
+
+        // annoying correction
+        if(r.length() < getPageIndex()+conf.getPageSize())
+            {r.setLength(getPageIndex()+conf.getPageSize());}
 
         bPerf.incrementTotalOverflowNodeWrites();
     }
