@@ -22,6 +22,8 @@ public class TreeOverflow extends TreeNode {
      * Constructor which takes into the node type as well as the
      * page index
      *
+     * @param nextPagePointer the next overflow pointer
+     * @param prevPagePointer the previous leaf or overflow pointer
      * @param pageIndex the page index in the file
      */
     public TreeOverflow(long nextPagePointer, long prevPagePointer,

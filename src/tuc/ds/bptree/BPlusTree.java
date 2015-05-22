@@ -540,6 +540,16 @@ public class BPlusTree {
         {bPerf.incrementTotalSearches(); return(searchKey(this.root, key, unique));}
 
 
+    /**
+     * This function performs the actual search as described in searchKey description
+     * and is recursively called until we reach a leaf.
+     *
+     * @param node the node to poke into
+     * @param key key that we want to match
+     * @param unique unique results?
+     * @return the search result
+     * @throws IOException
+     */
     private SearchResult searchKey(TreeNode node, long key, boolean unique)
             throws IOException {
 
@@ -550,9 +560,6 @@ public class BPlusTree {
         // check if we found it
         if(node.isLeaf()) {
             i--;
-            //TreeLeaf leaf = (TreeLeaf) readNode(((TreeLeaf)node).getNextPagePointer());
-
-            //TreeLeaf leaf1 = (TreeLeaf) readNode(((TreeLeaf)leaf).getNextPagePointer());
             if(i >= 0 && i < node.getCurrentCapacity() && key == node.getKeyAt(i)) {
 
                 // we found the key, depending on the unique flag handle accordingly
@@ -603,6 +610,12 @@ public class BPlusTree {
         return(0);
     }
 
+    /**
+     * Function that initially creates the tree. Here we always
+     * create a Leaf that acts as our Root, until we split it.
+     * @return the initial (leaf) tree root.
+     * @throws IOException
+     */
     private TreeNode createTree() throws IOException {
         if(root == null) {
             root = new TreeLeaf(-1, -1,
@@ -954,6 +967,12 @@ public class BPlusTree {
 
     }
 
+    /**
+     * Helper to print the node
+     *
+     * @param index index of the node to read and print.
+     * @throws IOException
+     */
     public void printNodeAt(long index) throws IOException {
         TreeNode t = readNode(index);
         t.printNode();

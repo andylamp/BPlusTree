@@ -5,12 +5,25 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 
-public class TreeLeaf extends TreeNode {
-    private long nextPagePointer;
-    private long prevPagePointer;
-    private LinkedList<String> valueList;
-    private LinkedList<Long> overflowList;
+/**
+ * Class for our Tree leafs
+ *
+ */
 
+public class TreeLeaf extends TreeNode {
+    private long nextPagePointer;           // pointer to next leaf in the list
+    private long prevPagePointer;           // pointer to prev leaf in the list
+    private LinkedList<String> valueList;   // satellite data list
+    private LinkedList<Long> overflowList;  // overflow pointer list
+
+    /**
+     * Constructor for our Internal node
+     *
+     * @param nextPagePointer the next leaf pointer
+     * @param prevPagePointer the previous leaf pointer
+     * @param nodeType the node type
+     * @param pageIndex the index of the page
+     */
     public TreeLeaf(long nextPagePointer, long prevPagePointer,
                     TreeNodeType nodeType, long pageIndex) {
         super(nodeType, pageIndex);

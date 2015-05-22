@@ -7,14 +7,20 @@ import java.util.LinkedList;
 
 /**
  *
- * Our internal node class
+ * Class for our Internal nodes
  *
  */
 
 public class TreeInternalNode extends TreeNode {
 
-    private LinkedList<Long> pointerArray;
+    private LinkedList<Long> pointerArray;  // the pointer array
 
+    /**
+     * Create an internal node
+     *
+     * @param nodeType the node type parameter
+     * @param pageIndex the index of the page
+     */
     public TreeInternalNode(TreeNodeType nodeType, long pageIndex) {
         super(nodeType, pageIndex);
         pointerArray = new LinkedList<>();
