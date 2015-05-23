@@ -65,6 +65,7 @@ public abstract class TreeNode {
      *
      * @return true if it is empty false if it's not.
      */
+    @SuppressWarnings("unused")
     public boolean isEmpty()
         {return(currentCapacity == 0);}
 
@@ -113,6 +114,7 @@ public abstract class TreeNode {
      *
      * @param nodeType set the node type
      */
+    @SuppressWarnings("all")
     public void setNodeType(TreeNodeType nodeType) {
         // check if we presently are a leaf
         if(isLeaf()) {
@@ -152,6 +154,7 @@ public abstract class TreeNode {
      *
      * @param pageIndex new page index
      */
+    @SuppressWarnings("unused")
     public void setPageIndex(long pageIndex)
         {this.pageIndex = pageIndex;}
 
@@ -161,6 +164,7 @@ public abstract class TreeNode {
      * @param index index to set the key
      * @param key key to set in position
      */
+    @SuppressWarnings("unused")
     public void setKeyArrayAt(int index, long key)
         {keyArray.set(index, key);}
 
@@ -204,6 +208,7 @@ public abstract class TreeNode {
      * @param index index that points where to remvoe the key
      * @return removed key
      */
+    @SuppressWarnings("unused")
     public long removeKeyAt(int index)
         {return(keyArray.remove(index));}
 

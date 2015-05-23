@@ -24,6 +24,7 @@ public class BPlusTree {
      *
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public BPlusTree() throws IOException {
         this.conf = new BPlusConfiguration();
         this.totalTreePages = 0L;
@@ -43,6 +44,7 @@ public class BPlusTree {
      * @param bPerf performance counter class
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, BPlusTreePerformanceCounter bPerf)
             throws IOException {
         this.conf = conf;
@@ -64,6 +66,7 @@ public class BPlusTree {
      * @param bPerf performance counter class
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, String mode,
                      BPlusTreePerformanceCounter bPerf)
             throws IOException {
@@ -86,6 +89,7 @@ public class BPlusTree {
      * @param bPerf performance counter class
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, String mode,
                      String treeFilePath, BPlusTreePerformanceCounter bPerf)
             throws IOException {
@@ -106,6 +110,7 @@ public class BPlusTree {
      * @param unique allow duplicates for this run?
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public void insertKey(long key, String value, boolean unique) throws IOException {
 
         if(root == null)
@@ -535,6 +540,7 @@ public class BPlusTree {
      * @return the search result
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public SearchResult searchKey(long key, boolean unique)
             throws IOException
         {bPerf.incrementTotalSearches(); return(searchKey(this.root, key, unique));}
@@ -601,12 +607,49 @@ public class BPlusTree {
 
     }
 
-    public int deleteKey(long key, boolean unique) {
-        return(traverseAndDelete(root, key, unique));
-    }
+    /**
+     * Function to delete a key from our tree... this function is again
+     * adopted from CLRS delete method but this was basically written
+     * from scratch and is loosely based on the actual notes.
+     *
+     * -- firstly it deletes the keys (all or first depending on unique flag)
+     * -- secondly it updates the pool of empty pages
+     * -- thirdly performs merges if necessary (it capacity falls < degree-1)
+     * -- finally condenses the file size depending on load
+     *
+     * @param key key to delete
+     * @param unique unique deletions?
+     * @return the number of deleted keys
+     */
+    @SuppressWarnings("unused")
+    public int deleteKey(long key, boolean unique)
+        {return(deleteKey(root, null, key, unique));}
 
-    private int traverseAndDelete(TreeNode parent, long key,
-                                  boolean unique) {
+    /**
+     * That function does the job as described above; to perform easily the deletions
+     * we store *two* nodes instead on *one* in memory; the parent and the current.
+     * This also avoids adding information to the actual node file structure to account
+     * for the "parenting" link.
+     *
+     * @param current node that we currently probe
+     * @param parent parent of the current node
+     * @param key key to delete
+     * @param unique unique deletions?
+     * @return the nubmer of deleted keys
+     */
+    public int deleteKey(TreeNode current, TreeNode parent, long key, boolean unique) {
+        TreeNode tc = current;
+        TreeNode tp = parent;
+        TreeNode next = null;
+
+        if(current.isInternalNode()) {
+
+        } else {
+
+        }
+
+        deleteKey(next, current, key, unique);
+
         return(0);
     }
 
@@ -672,8 +715,24 @@ public class BPlusTree {
      * @param index index of the page
      * @return the calculated file offset to be fed in seek.
      */
+    @SuppressWarnings("unused")
     private long calculatePageOffset(long index)
         {return(conf.getPageSize()*(index+1));}
+
+    /**
+     * Function that commits the allocation pool to the file;
+     * this can be done after each deletion or more unsafely
+     * before committing the file changes at the end.
+     *
+     * @throws IOException
+     */
+    private void commitLookupPage() throws IOException {
+        // seek to the position we have to start to write
+        treeFile.seek(conf.getLookupPageOffset());
+        // now write
+        for(long i : freeSlotPool)
+            {treeFile.writeLong(i);}
+    }
 
     /**
      * Read each tree node and return it as a generic type
@@ -892,7 +951,7 @@ public class BPlusTree {
      * @throws IOException
      */
     public void commitTree() throws IOException
-        {this.treeFile.close();}
+        {commitLookupPage(); this.treeFile.close();}
 
     /**
      * This function initializes the look-up page; in the simple
@@ -943,8 +1002,19 @@ public class BPlusTree {
      *
      * @return the configuration reference
      */
+    @SuppressWarnings("unused")
     public BPlusConfiguration getTreeConfiguration()
         {return(conf);}
+
+
+    /**
+     * Return the current performance class tied to our instance
+     *
+     * @return the performance class reference
+     */
+    @SuppressWarnings("unused")
+    public BPlusTreePerformanceCounter getPerformanceClass()
+        {return bPerf;}
 
     /**
      * Prints the current configuration to stdout.
@@ -964,7 +1034,6 @@ public class BPlusTree {
                 printNodeAt(ptr);
             }
         }
-
     }
 
     /**

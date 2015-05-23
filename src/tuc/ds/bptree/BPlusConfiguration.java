@@ -128,6 +128,9 @@ public class BPlusConfiguration {
     public int getLookupPageSize()
         {return(lookupPageSize);}
 
+    public long getLookupPageOffset()
+        {return(pageSize-lookupPageSize);}
+
     public int getHeaderSize()
         {return(headerSize);}
 
@@ -140,7 +143,8 @@ public class BPlusConfiguration {
         System.out.println("Key size: " + keySize + " (in bytes)");
         System.out.println("Entry size: " + entrySize + " (in bytes)");
         System.out.println("File header size: " + headerSize + " (in bytes)");
-        System.out.println("Lookup space size: " + lookupPageSize + " (in bytes)");
+        System.out.println("Lookup space size: " + getLookupPageSize() +
+                " (in bytes)");
         System.out.println("\nInternal Node Degree: " +
                 getTreeDegree() +
                 "\n\t Min cap: " + getMinInternalNodeCapacity() +
