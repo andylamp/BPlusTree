@@ -19,7 +19,7 @@ public class TestRunner {
      * @throws IOException
      */
     public static void runBench(BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         StandardInputRead sin = new StandardInputRead();
         int choice;
 
@@ -54,7 +54,7 @@ public class TestRunner {
      * @throws IOException
      */
     public static void runDefaultTrialsFast(BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         int trials = 20;
         int vmin = 1;
         int vmax = 99999;
@@ -76,7 +76,7 @@ public class TestRunner {
      */
     public static void handleChoices(int choice, StandardInputRead sin,
                                      BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         boolean unique = true;
         switch(choice) {
             case 1: {
@@ -137,7 +137,7 @@ public class TestRunner {
      */
     public static void runInsertion(StandardInputRead sin,
                                     BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         String val = "1234567890";  // default value
         int key = -1;
@@ -233,7 +233,7 @@ public class TestRunner {
     public static void runDefaultTrials(int trials, int vmin, int vmax, int qrange,
                                         String val, boolean unique, boolean verbose,
                                         BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         TrialsClass.runSearchTrial(trials, vmin, vmax, unique, bPerf, verbose);
         TrialsClass.runInsertTrial(trials, vmin, vmax, val, unique, bPerf, verbose);
         TrialsClass.runRangeQueryTrial(trials, vmin, vmax, qrange, unique, bPerf, verbose);

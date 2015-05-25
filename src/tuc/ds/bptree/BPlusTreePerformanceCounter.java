@@ -1,5 +1,7 @@
 package tuc.ds.bptree;
 
+import tuc.ds.util.InvalidBTreeStateException;
+
 import java.io.IOException;
 
 public class BPlusTreePerformanceCounter {
@@ -352,7 +354,8 @@ public class BPlusTreePerformanceCounter {
     }
 
     public int[] insertIO(long key, String value,
-                        boolean unique, boolean verbose) throws IOException {
+                        boolean unique, boolean verbose)
+            throws IOException, InvalidBTreeStateException {
         startPageTracking();
         bt.insertKey(key, value, unique);
         if(verbose) {

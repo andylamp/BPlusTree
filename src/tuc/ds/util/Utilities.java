@@ -38,7 +38,7 @@ public class Utilities {
      */
     public static void sequentialAddToTree(long from, long to, String val,
                                            boolean unique, BPlusTree bt)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         for(long i = from; i < to; i++) {
             if(i%10000 == 0){
                 System.out.println("Currently at: " + i);

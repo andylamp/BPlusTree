@@ -6,8 +6,9 @@
 	-- entry size -- 4 bytes
 	-- key size -- 4 bytes
 	-- number of pages -- 8 bytes
+	-- max page index -- 8 bytes
 	-- root index -- 8 bytes
-	-- pool of available index spots -- page size - 32 (6 variables);;
+	-- pool of available index spots -- page size - 40 (7 variables);;
  | 
  
 internal page:

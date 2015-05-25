@@ -58,9 +58,10 @@ public class TrialsClass {
      * @param verbose verbose results?
      * @throws IOException
      */
-    public static void runInsertTrial(int trials, int rmin, int rmax, String value,
-                                      boolean unique, BPlusTreePerformanceCounter bPerf,
-                                      boolean verbose) throws IOException {
+    public static void runInsertTrial(int trials, int rmin, int rmax,
+                                      String value, boolean unique,
+                                      BPlusTreePerformanceCounter bPerf, boolean verbose)
+            throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;
         int stats[];

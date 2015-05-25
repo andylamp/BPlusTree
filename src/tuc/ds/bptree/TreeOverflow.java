@@ -37,6 +37,9 @@ public class TreeOverflow extends TreeNode {
     public void pushToValueList(String value)
         {valueList.push(value);}
 
+    public String removeLastValue()
+        {return(valueList.removeLast());}
+
     public void addToValueList(int index, String value)
         {valueList.add(index, value);}
 

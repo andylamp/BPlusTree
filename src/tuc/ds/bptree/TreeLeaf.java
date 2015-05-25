@@ -48,6 +48,9 @@ public class TreeLeaf extends TreeNode {
     public long popOverflowPointer()
         {return(overflowList.pop());}
 
+    public void setOVerflowPointerAt(int index,  long value)
+        {overflowList.set(index, value);}
+
     public long removeLastOverflowPointer()
         {return(overflowList.removeLast());}
 
@@ -74,6 +77,13 @@ public class TreeLeaf extends TreeNode {
 
     public long getPrevPagePointer()
         {return prevPagePointer;}
+
+    public String removeEntryAt(int index) {
+        keyArray.remove(index);
+        overflowList.remove(index);
+        decrementCapacity();
+        return(valueList.remove(index));
+    }
 
     public void setPrevPagePointer(long prevPagePointer)
         {this.prevPagePointer = prevPagePointer;}

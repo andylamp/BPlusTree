@@ -3,6 +3,7 @@ package tuc.ds.p2;
 import tuc.ds.bptree.BPlusConfiguration;
 import tuc.ds.bptree.BPlusTree;
 import tuc.ds.bptree.BPlusTreePerformanceCounter;
+import tuc.ds.util.InvalidBTreeStateException;
 import tuc.ds.util.TestRunner;
 import tuc.ds.util.Utilities;
 
@@ -10,7 +11,8 @@ import java.io.IOException;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args)
+            throws IOException, InvalidBTreeStateException {
         boolean fastTrials = true;
         boolean recreateTree = true;
         BPlusConfiguration btconf = new BPlusConfiguration();

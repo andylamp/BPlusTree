@@ -48,6 +48,22 @@ public abstract class TreeNode {
             {return(conf.getMaxInternalNodeCapacity() == currentCapacity);}
     }
 
+    /**
+     * Check if the node is underutilized and needs to be merged
+     *
+     * @param conf B+ Tree configuration reference
+     * @return true is the node needs to be merged or false if it's not
+     */
+    public boolean isTimeToMerge(BPlusConfiguration conf) {
+        if(isLeaf()) {
+            return(isOverflow() ?
+                    isEmpty() :
+                    (conf.getMinLeafNodeCapacity() == currentCapacity));}
+        else
+        // internal
+        {return(conf.getMinInternalNodeCapacity() == currentCapacity);}
+    }
+
     public int getCurrentCapacity()
         {return(currentCapacity);}
 

@@ -1,10 +1,11 @@
 package tuc.ds.bptree;
 
-import sun.plugin.dom.exception.InvalidStateException;
+import tuc.ds.util.InvalidBTreeStateException;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Collections;
 import java.util.InvalidPropertiesFormatException;
 import java.util.LinkedList;
 
@@ -16,6 +17,7 @@ public class BPlusTree {
     private BPlusConfiguration conf;
     private LinkedList<Long> freeSlotPool;
     private long totalTreePages;
+    private long maxPageIndex;
     private BPlusTreePerformanceCounter bPerf = null;
 
     /**
@@ -25,10 +27,9 @@ public class BPlusTree {
      * @throws IOException
      */
     @SuppressWarnings("unused")
-    public BPlusTree() throws IOException {
+    public BPlusTree() throws IOException, InvalidBTreeStateException {
         this.conf = new BPlusConfiguration();
-        this.totalTreePages = 0L;
-        this.freeSlotPool = new LinkedList<>();
+        initializeCommon();
         bPerf = new BPlusTreePerformanceCounter(false);
         bPerf.setBTree(this);
         openFile("tree.bin", "rw+", conf);
@@ -45,11 +46,11 @@ public class BPlusTree {
      * @throws IOException
      */
     @SuppressWarnings("unused")
-    public BPlusTree(BPlusConfiguration conf, BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+    public BPlusTree(BPlusConfiguration conf,
+                     BPlusTreePerformanceCounter bPerf)
+            throws IOException, InvalidBTreeStateException {
         this.conf = conf;
-        this.totalTreePages = 0L;
-        this.freeSlotPool = new LinkedList<>();
+        initializeCommon();
         this.bPerf = bPerf;
         bPerf.setBTree(this);
         openFile("tree.bin", "rw+", conf);
@@ -69,10 +70,9 @@ public class BPlusTree {
     @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, String mode,
                      BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         this.conf = conf;
-        this.totalTreePages = 0L;
-        this.freeSlotPool = new LinkedList<>();
+        initializeCommon();
         this.bPerf = bPerf;
         bPerf.setBTree(this);
         openFile("tree.bin", mode, conf);
@@ -92,10 +92,9 @@ public class BPlusTree {
     @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, String mode,
                      String treeFilePath, BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         this.conf = conf;
-        this.freeSlotPool = new LinkedList<>();
-        this.totalTreePages = 0L;
+        initializeCommon();
         this.bPerf = bPerf;
         bPerf.setBTree(this);
         openFile(treeFilePath, mode, conf);
@@ -111,7 +110,8 @@ public class BPlusTree {
      * @throws IOException
      */
     @SuppressWarnings("unused")
-    public void insertKey(long key, String value, boolean unique) throws IOException {
+    public void insertKey(long key, String value, boolean unique)
+            throws IOException, InvalidBTreeStateException {
 
         if(root == null)
             {throw new IllegalStateException("Can't insert to null tree");}
@@ -255,8 +255,7 @@ public class BPlusTree {
         ynode.writeNode(treeFile, conf, bPerf);
         n.writeNode(treeFile, conf, bPerf);
         // commit page counts
-        treeFile.seek(conf.getPageCountOffset());
-        treeFile.writeLong(totalTreePages);
+        updatePageIndexCounts(conf);
 
     }
 
@@ -277,7 +276,7 @@ public class BPlusTree {
      * @throws IOException
      */
     private TreeOverflow createOverflowPage(TreeNode n, int index, String value)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         TreeOverflow novf;
         if(n.isOverflow()) {
             TreeOverflow ovf = (TreeOverflow)n;
@@ -307,14 +306,13 @@ public class BPlusTree {
             l.writeNode(treeFile, conf, bPerf);
             // commit page counts
         } else {
-            throw new InvalidStateException("Expected Leaf or Overflow, got instead: "
-                    + n.getNodeType().toString());
+            throw new InvalidBTreeStateException("Expected Leaf or Overflow, " +
+                    "got instead: " + n.getNodeType().toString());
         }
 
         bPerf.incrementTotalOverflowPages();
         // commit page counts
-        treeFile.seek(conf.getPageCountOffset());
-        treeFile.writeLong(totalTreePages);
+        updatePageIndexCounts(conf);
         // finally return the page
         return(novf);
     }
@@ -333,7 +331,7 @@ public class BPlusTree {
      * @throws IOException
      */
     private void insertNonFull(TreeNode n, long key, String value, boolean unique)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         boolean goLeft = true;
         int i = n.getCurrentCapacity()-1;
         // descend down the node
@@ -622,7 +620,7 @@ public class BPlusTree {
      * @return the number of deleted keys
      */
     @SuppressWarnings("unused")
-    public int deleteKey(long key, boolean unique)
+    public DeleteResult deleteKey(long key, boolean unique) throws IOException
         {return(deleteKey(root, null, key, unique));}
 
     /**
@@ -635,22 +633,127 @@ public class BPlusTree {
      * @param parent parent of the current node
      * @param key key to delete
      * @param unique unique deletions?
-     * @return the nubmer of deleted keys
+     * @return the number of deleted keys
      */
-    public int deleteKey(TreeNode current, TreeNode parent, long key, boolean unique) {
+    public DeleteResult deleteKey(TreeNode current, TreeNode parent, long key,
+                         boolean unique) throws IOException {
         TreeNode tc = current;
         TreeNode tp = parent;
         TreeNode next = null;
+        int i = 0;
+        while(i < current.getCurrentCapacity() && key >= current.getKeyAt(i)) {i++;}
 
         if(current.isInternalNode()) {
 
-        } else {
-
+            return(deleteKey(next, current, key, unique));
         }
 
-        deleteKey(next, current, key, unique);
+        else if(current.isLeaf()) {
+            TreeLeaf l = (TreeLeaf)current;
+            LinkedList<String> rvals = null;
 
-        return(0);
+            if(key == l.getKeyAt(i)) {
+                System.out.println("Found the key, removing it");
+
+                rvals = new LinkedList<>();
+
+
+                // we we *have* to make a choice on where to make
+                // a read trade off.
+
+                //TODO
+                // check if we have an overflow page
+                if(l.getOverflowPointerAt(i) != -1) {
+                    TreeOverflow ovf = null;
+                    TreeOverflow povf =
+                            (TreeOverflow)readNode(l.getOverflowPointerAt(i));
+
+                    // descend to the last page
+                    while(povf.getNextPagePointer() != -1L) {
+                        ovf = povf;
+                        povf = (TreeOverflow)readNode(povf.getNextPagePointer());
+                    }
+
+                    // handle singular deletes
+                    if(unique) {
+                        // remove from the overflow page the value
+                        rvals.add(povf.removeLastValue());
+                        povf.decrementCapacity();
+
+                        // if the page is empty, delete it.
+                        if(povf.isEmpty()) {
+                            if(ovf == null) {
+                                l.setOVerflowPointerAt(i, -1L);
+                                l.writeNode(treeFile, conf, bPerf);
+                            }
+                            else {
+                                ovf.setNextPagePointer(-1L);
+                                ovf.writeNode(treeFile, conf, bPerf);
+                            }
+                            // now delete the page
+                            deletePage(povf.getPageIndex(), false);
+                        }
+
+                        // return the result
+                        return(new DeleteResult(key, rvals));
+                    }
+                    // we have to delete all the values
+                    else {
+
+                        // here to save reads/writes we just
+                        // "delete-as-we-read"
+                        while(povf.getCurrentCapacity() > 0) {
+                            rvals.add(povf.removeLastValue());
+                            povf.decrementCapacity();
+
+                            // check if it's time to remove the page
+                            if(povf.isEmpty()) {
+                                deletePage(povf.getPageIndex(), false);
+                                if(povf.getNextPagePointer() != -1L)
+                                    {povf = (TreeOverflow)readNode(povf.getNextPagePointer());}
+                            }
+                        }
+                        /*
+                        // set the pointer to the original leaf page to NIL
+                        l.setOVerflowPointerAt(i, -1L);
+                        l.writeNode(treeFile, conf, bPerf);
+                        */
+                    }
+
+                }
+                // we reached here because either we have no overflow page
+                // or non-unique deletes with overflow pages. We should reach
+                // here after we purged all the overflow pages.
+
+                // let's remove the key at will.
+                rvals.add(l.removeEntryAt(i));
+
+                // let's check if we have to perform a leaf merge
+                if(l.isTimeToMerge(conf)) {
+                    // damn, merge needs to happen.
+                    return(null);
+                }
+                // thankfully we don't need to merge, hence just return.
+                else {
+                    l.writeNode(treeFile, conf, bPerf);
+                    return(new DeleteResult(key, rvals));
+                }
+
+            }
+
+            else {
+                System.out.println("Key not found");
+                return(new DeleteResult(key, rvals));
+            }
+
+        }
+        else
+            {throw new IllegalStateException("Read unknown or overflow page while descending");}
+
+    }
+
+    public void mergeTreeNodes(TreeNode mnode, TreeNode parent) {
+
     }
 
     /**
@@ -839,44 +942,50 @@ public class BPlusTree {
      * @throws IOException
      */
     private BPlusConfiguration readFileHeader(RandomAccessFile r, boolean generateConf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         r.seek(0L);
 
         // read the header number
         int headerNumber = r.readInt();
 
         if(headerNumber < 0)
-            {throw new InvalidStateException("Negative header number found...");}
+            {throw new InvalidBTreeStateException("Negative header number found...");}
 
         // read the page size
         int pageSize = r.readInt();
 
         if(pageSize < 0)
-            {throw new InvalidStateException("Cannot create a tree with negative page size");}
+            {throw new InvalidBTreeStateException("Cannot create a tree with negative page size");}
 
         // read the entry size
         int entrySize = r.readInt();
 
         if(entrySize <= 0)
-            {throw new InvalidStateException("Entry size must be > 0");}
+            {throw new InvalidBTreeStateException("Entry size must be > 0");}
 
         // key size
         int keySize = r.readInt();
 
         if(keySize > 8 || keySize < 4)
-            {throw new InvalidStateException("Key size but be either 4 or 8 bytes");}
+            {throw new InvalidBTreeStateException("Key size but be either 4 or 8 bytes");}
 
         // read the number of pages (excluding the lookup)
         totalTreePages = r.readLong();
 
         if(totalTreePages < 0)
-            {throw new InvalidStateException("Tree page number cannot be < 0");}
+            {throw new InvalidBTreeStateException("Tree page number cannot be < 0");}
+
+        // read the max page offset
+        maxPageIndex = r.readLong();
+
+        if(maxPageIndex < 0 || (totalTreePages > 0 && maxPageIndex == 0))
+            {throw new InvalidBTreeStateException("Invalid max page offset");}
 
         // read the root index
         long rootIndex = r.readLong();
 
         if(rootIndex < 0)
-            {throw new InvalidStateException("Root can't have index < 0");}
+            {throw new InvalidBTreeStateException("Root can't have index < 0");}
 
         // read the root.
         root = readNode(rootIndex);
@@ -917,7 +1026,7 @@ public class BPlusTree {
      * @throws IOException
      */
     private void openFile(String path, String mode, BPlusConfiguration opt)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         File f = new File(path);
         String stmode = mode.substring(0, 2);
         treeFile = new RandomAccessFile(path, stmode);
@@ -993,8 +1102,28 @@ public class BPlusTree {
         if(freeSlotPool.size() > 0)
             {index = freeSlotPool.pop(); totalTreePages++; return(index);}
         // if not pad to the end of the file.
-        else
-            {index = conf.getPageSize() * (totalTreePages + 1); totalTreePages++; return(index);}
+        else {
+
+            if(maxPageIndex <= totalTreePages)
+                {maxPageIndex++;}
+
+            totalTreePages++;
+
+            index = conf.getPageSize() * (maxPageIndex + 1);
+            return(index);
+        }
+    }
+
+    /**
+     * Commit the page count and the max offset in the file
+     *
+     * @param conf B+ configuration reference
+     * @throws IOException
+     */
+    private void updatePageIndexCounts(BPlusConfiguration conf) throws IOException {
+        treeFile.seek(conf.getPageCountOffset());
+        treeFile.writeLong(totalTreePages);
+        treeFile.writeLong(maxPageIndex);
     }
 
     /**
@@ -1037,11 +1166,37 @@ public class BPlusTree {
     }
 
     /**
+     *
+     * Handy method to initialize common variables
+     *
+     */
+    private void initializeCommon() {
+        this.totalTreePages = 0L;
+        this.maxPageIndex = 0L;
+        this.freeSlotPool = new LinkedList<>();
+    }
+
+    /**
+     * Delete the page
+     *
+     * @param pageIndex page index to remove
+     * @param sort sort free sort pool?
+     */
+    private void deletePage(long pageIndex, boolean sort) {
+        this.freeSlotPool.add(pageIndex);
+        if(sort) {
+            Collections.sort(freeSlotPool);
+            //TODO Condition the file
+        }
+    }
+
+    /**
      * Helper to print the node
      *
      * @param index index of the node to read and print.
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public void printNodeAt(long index) throws IOException {
         TreeNode t = readNode(index);
         t.printNode();

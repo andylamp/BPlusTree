@@ -32,7 +32,7 @@ public class BPlusConfiguration {
         this.entrySize = 20;                            // each entry size (in bytes)
         this.keySize = 8;                               // key size (in bytes)
         this.headerSize =                               // header size in bytes
-                (Integer.SIZE * 4 + 2 * Long.SIZE)/8;
+                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
         this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
         this.lookupPageSize = pageSize - headerSize;    // lookup page size
@@ -57,7 +57,7 @@ public class BPlusConfiguration {
         this.entrySize = entrySize;                         // entry size (in bytes)
         this.keySize = keySize;                             // key size (in bytes)
         this.headerSize =                                   // header size in bytes
-                (Integer.SIZE * 4 + 2 * Long.SIZE)/8;
+                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
         this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
         this.lookupPageSize = pageSize - headerSize;  // lookup page size
