@@ -55,10 +55,17 @@ public abstract class TreeNode {
      * @return true is the node needs to be merged or false if it's not
      */
     public boolean isTimeToMerge(BPlusConfiguration conf) {
-        if(isLeaf()) {
-            return(isOverflow() ?
-                    isEmpty() :
-                    (conf.getMinLeafNodeCapacity() == currentCapacity));}
+        // for roots (internal or leaf) return true only when empty
+        if(isRoot())
+            {return(isEmpty());}
+        else if(isLeaf()) {
+            // for overflow pages return true only if empty
+            if (isOverflow())
+                {return (isEmpty());}
+            // otherwise return based on degree
+            else
+                {return (conf.getMinLeafNodeCapacity() == currentCapacity);}
+        }
         else
         // internal
         {return(conf.getMinInternalNodeCapacity() == currentCapacity);}

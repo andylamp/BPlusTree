@@ -119,6 +119,8 @@ public class BPlusTree {
         if(key < 0)
             {throw new NumberFormatException("Can't have negative keys, sorry.");}
 
+        value = conditionString(value);
+
         // check if our root is full
         if(root.isFull(conf)) {
             // allocate a new *internal* node
@@ -637,14 +639,14 @@ public class BPlusTree {
      */
     public DeleteResult deleteKey(TreeNode current, TreeNode parent, long key,
                          boolean unique) throws IOException {
-        TreeNode tc = current;
-        TreeNode tp = parent;
-        TreeNode next = null;
         int i = 0;
         while(i < current.getCurrentCapacity() && key >= current.getKeyAt(i)) {i++;}
 
+        // check if it's an internal node
         if(current.isInternalNode()) {
-
+            // if it is, descend to a leaf
+            TreeInternalNode inode = (TreeInternalNode)current;
+            TreeNode next = readNode(inode.getPointerAt(i));
             return(deleteKey(next, current, key, unique));
         }
 
@@ -661,7 +663,6 @@ public class BPlusTree {
                 // we we *have* to make a choice on where to make
                 // a read trade off.
 
-                //TODO
                 // check if we have an overflow page
                 if(l.getOverflowPointerAt(i) != -1) {
                     TreeOverflow ovf = null;
@@ -722,8 +723,8 @@ public class BPlusTree {
 
                 }
                 // we reached here because either we have no overflow page
-                // or non-unique deletes with overflow pages. We should reach
-                // here after we purged all the overflow pages.
+                // or non-unique deletes with overflow pages. We should
+                // reach this point after we purged all the overflow pages.
 
                 // let's remove the key at will.
                 rvals.add(l.removeEntryAt(i));
@@ -731,6 +732,7 @@ public class BPlusTree {
                 // let's check if we have to perform a leaf merge
                 if(l.isTimeToMerge(conf)) {
                     // damn, merge needs to happen.
+                    mergeTreeNodes(l, parent, i);
                     return(null);
                 }
                 // thankfully we don't need to merge, hence just return.
@@ -752,8 +754,55 @@ public class BPlusTree {
 
     }
 
-    public void mergeTreeNodes(TreeNode mnode, TreeNode parent) {
 
+    /**
+     * Check if the node has the specified parent
+     * @param node node can be internal or leaf
+     * @param parent parent is always internal node
+     * @param pindex index to check
+     * @return true if it is, false if it's not
+     */
+    private boolean isParent(TreeNode node, TreeInternalNode parent, int pindex) {
+        return parent.getCurrentCapacity() > pindex && pindex >= 0 &&
+                (node.getPageIndex() == parent.getPointerAt(pindex));
+    }
+
+    public void mergeTreeNodes(TreeNode mnode, TreeNode parent, int pindex)
+            throws IOException {
+
+        // merging a leaf requires the most amount of work, since
+        // all leaves by definition are linked in a doubly-linked
+        // linked-list; hence when we merge/remove a node we have
+        // to make sure those links are consistent
+        if(mnode.isLeaf()) {
+            TreeLeaf splitNode = (TreeLeaf)mnode;
+            TreeInternalNode pNode = (TreeInternalNode)parent;
+            TreeLeaf nptr, pptr;
+
+            nptr = (TreeLeaf)readNode(splitNode.getNextPagePointer());
+            pptr = (TreeLeaf)readNode(splitNode.getPrevPagePointer());
+
+            // first probe next pointer
+            if(nptr != null && isParent(nptr, pNode, pindex+1)) {
+
+            }
+            // secondly probe prev pointer
+            else if(pptr != null && isParent(pptr, pNode, pindex-1)) {
+
+            } else
+                {throw new IllegalStateException("Can't have both leaf " +
+                        "pointers null and not be root or no " +
+                        "common parent");}
+        }
+
+        // we have to merge internal nodes, this is the somewhat easy
+        // case, since we do not have to update any more links than the
+        // currently pulled nodes.
+        else if(mnode.isInternalNode()) {
+            TreeInternalNode splitNode = (TreeInternalNode)mnode;
+
+        } else
+            {throw new IllegalStateException("Read unknown or overflow page while merging");}
     }
 
     /**
@@ -845,6 +894,11 @@ public class BPlusTree {
      * @throws IOException
      */
     private TreeNode readNode(long index) throws IOException {
+
+        // caution.
+        if(index < 0)
+            {return(null);}
+
         //calculatePageOffset(index)
         treeFile.seek(index);
         // get the page type
@@ -1210,6 +1264,31 @@ public class BPlusTree {
                 printNodeAt(ptr);
             }
         }
+    }
+
+
+    /**
+     * Condition the given string to match the entry size.
+     *
+     *  -- in case of length being greater than entry size, it is trimmed
+     *  -- in case of length being less than entry size, it is appended with
+     *      whitespaces.
+     *
+     * @param s string to condition
+     * @return the conditioned string
+     */
+    private String conditionString(String s) {
+        if(s.length() > conf.getEntrySize()) {
+            System.out.println("Satellite length can't exceed " +
+                    conf.getEntrySize() + " trimming...");
+            s = s.substring(0, conf.getEntrySize());
+        } else if(s.length() < conf.getEntrySize()) {
+            System.out.println("Satellite length can't be less than" +
+                    conf.getEntrySize() + ", adding whitespaces to make up");
+            int add = conf.getEntrySize() - s.length();
+            for(int i = 0; i < add; i++) {s = s + " ";}
+        }
+        return(s);
     }
 
 }
