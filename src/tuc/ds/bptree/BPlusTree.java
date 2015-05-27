@@ -29,9 +29,8 @@ public class BPlusTree {
     @SuppressWarnings("unused")
     public BPlusTree() throws IOException, InvalidBTreeStateException {
         this.conf = new BPlusConfiguration();
-        initializeCommon();
         bPerf = new BPlusTreePerformanceCounter(false);
-        bPerf.setBTree(this);
+        initializeCommon();
         openFile("tree.bin", "rw+", conf);
     }
 
@@ -50,9 +49,8 @@ public class BPlusTree {
                      BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         this.conf = conf;
-        initializeCommon();
         this.bPerf = bPerf;
-        bPerf.setBTree(this);
+        initializeCommon();
         openFile("tree.bin", "rw+", conf);
     }
 
@@ -72,9 +70,8 @@ public class BPlusTree {
                      BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         this.conf = conf;
-        initializeCommon();
         this.bPerf = bPerf;
-        bPerf.setBTree(this);
+        initializeCommon();
         openFile("tree.bin", mode, conf);
     }
 
@@ -94,9 +91,8 @@ public class BPlusTree {
                      String treeFilePath, BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         this.conf = conf;
-        initializeCommon();
         this.bPerf = bPerf;
-        bPerf.setBTree(this);
+        initializeCommon();
         openFile(treeFilePath, mode, conf);
     }
 
@@ -1362,6 +1358,7 @@ public class BPlusTree {
         this.totalTreePages = 0L;
         this.maxPageIndex = 0L;
         this.freeSlotPool = new LinkedList<>();
+        this.bPerf.setBTree(this);
     }
 
     /**
