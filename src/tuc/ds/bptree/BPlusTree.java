@@ -858,8 +858,9 @@ public class BPlusTree {
      */
     private void redistributeNodes(TreeLeaf to, TreeLeaf with,
                                    int elements, boolean left,
-                                   TreeInternalNode parent, int index) {
+                                   TreeInternalNode parent, int index) throws IOException {
         long key;
+        // handle the case when redistributing using prev
         if(left) {
             for(int i = 0; i < elements; i++) {
                 to.pushToOverflowList(with.removeLastOverflowPointer());
@@ -870,7 +871,9 @@ public class BPlusTree {
             }
             key = to.getKeyAt(0);
 
-        } else {
+        }
+        // handle the case when redistributing using next
+        else {
             for(int i = 0; i < elements; i++) {
                 to.addLastToOverflowList(with.popOverflowPointer());
                 to.addLastToValueList(with.popValue());
@@ -880,7 +883,12 @@ public class BPlusTree {
             }
             key = with.getKeyAt(0);
         }
+        // in either case update parent pointer
         parent.setKeyArrayAt(index, key);
+        // finally write the changes
+        to.writeNode(treeFile, conf, bPerf);
+        with.writeNode(treeFile, conf, bPerf);
+        parent.writeNode(treeFile, conf, bPerf);
     }
 
     public void mergeOrRedistributeTreeNodes(TreeNode mnode, TreeNode parent, int pindex)
