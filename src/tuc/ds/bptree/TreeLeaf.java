@@ -39,6 +39,12 @@ public class TreeLeaf extends TreeNode {
     public void addToOverflowList(int index, long value)
         {overflowList.add(index, value);}
 
+    public void addLastToOverflowList(long value)
+        {overflowList.addLast(value);}
+
+    public void addLastToValueList(String value)
+        {valueList.addLast(value);}
+
     public long getOverflowPointerAt(int index)
         {return overflowList.get(index);}
 

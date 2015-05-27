@@ -210,6 +210,22 @@ public abstract class TreeNode {
         {keyArray.push(key);}
 
     /**
+     * Add a key to the last place of the array
+     *
+     * @param key key to add
+     */
+    public void addLastToKeyArray(long key)
+        {keyArray.addLast(key);}
+
+    /**
+     * Get last element
+     *
+     * @return return the last key
+     */
+    public long getLastKey()
+        {return keyArray.getLast();}
+
+    /**
      * Pop the key at the head of the array
      *
      * @return key that is in the head of the array

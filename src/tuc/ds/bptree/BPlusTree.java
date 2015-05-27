@@ -622,7 +622,8 @@ public class BPlusTree {
      * @return the number of deleted keys
      */
     @SuppressWarnings("unused")
-    public DeleteResult deleteKey(long key, boolean unique) throws IOException
+    public DeleteResult deleteKey(long key, boolean unique)
+            throws IOException, InvalidBTreeStateException
         {return(deleteKey(root, null, key, unique));}
 
     /**
@@ -638,7 +639,7 @@ public class BPlusTree {
      * @return the number of deleted keys
      */
     public DeleteResult deleteKey(TreeNode current, TreeNode parent, long key,
-                         boolean unique) throws IOException {
+                         boolean unique) throws IOException, InvalidBTreeStateException {
         int i = 0;
         while(i < current.getCurrentCapacity() && key >= current.getKeyAt(i)) {i++;}
 
@@ -732,7 +733,7 @@ public class BPlusTree {
                 // let's check if we have to perform a leaf merge
                 if(l.isTimeToMerge(conf)) {
                     // damn, merge needs to happen.
-                    mergeTreeNodes(l, parent, i);
+                    mergeOrRedistributeTreeNodes(l, parent, i);
                     return(null);
                 }
                 // thankfully we don't need to merge, hence just return.
@@ -757,6 +758,7 @@ public class BPlusTree {
 
     /**
      * Check if the node has the specified parent
+     *
      * @param node node can be internal or leaf
      * @param parent parent is always internal node
      * @param pindex index to check
@@ -767,8 +769,126 @@ public class BPlusTree {
                 (node.getPageIndex() == parent.getPointerAt(pindex));
     }
 
-    public void mergeTreeNodes(TreeNode mnode, TreeNode parent, int pindex)
-            throws IOException {
+    /**
+     * Simple helper function to check if we can re-distribute the node
+     * values.
+     *
+     * @param with node to check the capacity
+     * @return the number of positions to check
+     * @throws InvalidBTreeStateException
+     */
+    private int canRedistribute(TreeNode with)
+            throws InvalidBTreeStateException {
+        if(with != null && !with.isFull(conf)) {
+            if(with.isInternalNode()) {
+                TreeInternalNode inode = (TreeInternalNode)with;
+                if(isValidAfterRemoval(inode, conf.getTreeDegree()))
+                    {return(conf.getTreeDegree());}
+                else if(isValidAfterRemoval(inode, conf.getTreeDegree()/2))
+                    {return(conf.getTreeDegree()/2);}
+            } else if(with.isLeaf()) {
+                TreeLeaf lnode = (TreeLeaf)with;
+                if(isValidAfterRemoval(lnode, conf.getLeafNodeDegree()))
+                    {return(conf.getLeafNodeDegree());}
+                else if(isValidAfterRemoval(lnode, conf.getLeafNodeDegree()/2))
+                    {return(conf.getLeafNodeDegree()/2);}
+            } else
+                {throw new InvalidBTreeStateException("Not leaf or internal node found");}
+        }
+        return(-1);
+    }
+
+    /**
+     * Check if the internal node fulfills the B+ Tree invariant after removing
+     * <code>remove</code> number of elements
+     *
+     * @param node node to check
+     * @param remove elements to be removed
+     * @return true if does, false if it fails the condition
+     */
+    private boolean isValidAfterRemoval(TreeInternalNode node, int remove)
+        {return((node.getCurrentCapacity()-remove) >= conf.getMinInternalNodeCapacity());}
+
+    /**
+     * Check if the leaf node fulfills the B+ Tree invariant after removing
+     * <code>remove</code> number of elements
+     *
+     * @param node node to check
+     * @param remove elements to be removed
+     * @return true if does, false if it fails the condition
+     */
+    private boolean isValidAfterRemoval(TreeLeaf node, int remove)
+        {return((node.getCurrentCapacity()-remove) >= conf.getMinInternalNodeCapacity());}
+
+    /**
+     * Function that is responsible to redistribute values among two leaf nodes
+     * while updating the referring key of the parent node (always an internal node).
+     *
+     *
+     * We have two distinct cases which are the following:
+     *
+     * This case is when we use the prev pointer:
+     *
+     * |--------|  <-----  |--------|
+     * |  with  |          |   to   |
+     * |--------|  ----->  |--------|
+     *
+     * In this case we  *remove* the *last* n elements from with
+     * and *push* them (in the order removed) into the destination node
+     *
+     * The parent key-pointer is updated with the first value of the
+     * receiving node.
+     *
+     * The other case is when we use the next pointer:
+     *
+     * |--------|  <-----  |--------|
+     * |   to   |          |  with  |
+     * |--------|  ----->  |--------|
+     *
+     * In this case we *remove* the *first* n elements from with and
+     * add them *last* (in the order removed) into the destination node.
+     *
+     * The parent key-pointer is updated with the first value of the
+     * node we retrieved the values.
+     *
+     *
+     *
+     * @param to node to receive (Key, Value) pairs
+     * @param with node that we take the (Key, Value) pairs
+     * @param elements number of elements to remove
+     * @param left if left is true, then we use prev leaf else next
+     * @param parent the internal node parenting both
+     * @param index index of the parent that refers to this pair
+     */
+    private void redistributeNodes(TreeLeaf to, TreeLeaf with,
+                                   int elements, boolean left,
+                                   TreeInternalNode parent, int index) {
+        long key;
+        if(left) {
+            for(int i = 0; i < elements; i++) {
+                to.pushToOverflowList(with.removeLastOverflowPointer());
+                to.pushToValueList(with.removeLastValue());
+                to.pushToKeyArray(with.removeLastKey());
+                to.incrementCapacity();
+                with.decrementCapacity();
+            }
+            key = to.getKeyAt(0);
+
+        } else {
+            for(int i = 0; i < elements; i++) {
+                to.addLastToOverflowList(with.popOverflowPointer());
+                to.addLastToValueList(with.popValue());
+                to.addLastToKeyArray(with.popKey());
+                to.incrementCapacity();
+                with.decrementCapacity();
+            }
+            key = with.getKeyAt(0);
+        }
+        parent.setKeyArrayAt(index, key);
+    }
+
+    public void mergeOrRedistributeTreeNodes(TreeNode mnode, TreeNode parent, int pindex)
+            throws IOException, InvalidBTreeStateException {
 
         // merging a leaf requires the most amount of work, since
         // all leaves by definition are linked in a doubly-linked
@@ -779,16 +899,30 @@ public class BPlusTree {
             TreeInternalNode pNode = (TreeInternalNode)parent;
             TreeLeaf nptr, pptr;
 
+            // load the pointers
             nptr = (TreeLeaf)readNode(splitNode.getNextPagePointer());
             pptr = (TreeLeaf)readNode(splitNode.getPrevPagePointer());
 
-            // first probe next pointer
-            if(nptr != null && isParent(nptr, pNode, pindex+1)) {
+            int nnum = canRedistribute(nptr);
+            int pnum = canRedistribute(pptr);
+            boolean npar = isParent(nptr, pNode, pindex+1);
+            boolean ppar = isParent(pptr, pNode, pindex-1);
 
+            // check if we can redistribute with next
+            if(nnum > 0 && npar) {
+                redistributeNodes(splitNode, nptr, nnum, false, pNode, pindex);
             }
-            // secondly probe prev pointer
-            else if(pptr != null && isParent(pptr, pNode, pindex-1)) {
-
+            // now check if we can redistribute with prev
+            else if(pnum > 0 && ppar) {
+                redistributeNodes(splitNode, pptr, pnum, true, pNode, pindex);
+            }
+            // we can't redistribute, try merging with next
+            else if(npar) {
+                //TODO merge leaf nodes n' stuff
+            }
+            // last chance, try merging with prev
+            else if(ppar) {
+                //TODO merge leaf nodes n' stuff
             } else
                 {throw new IllegalStateException("Can't have both leaf " +
                         "pointers null and not be root or no " +
@@ -1072,7 +1206,7 @@ public class BPlusTree {
     /**
      * Opens a file descriptor to our B+ Tree storage file; it can
      * handle already existing files as well without recreating them
-     * unless explcitly stated.
+     * unless explicitly stated.
      *
      * @param path file path
      * @param mode mode of opening (basically to truncate it or not)
