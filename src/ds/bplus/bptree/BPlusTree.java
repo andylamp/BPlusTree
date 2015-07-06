@@ -666,14 +666,15 @@ public class BPlusTree {
                     TreeOverflow povf =
                             (TreeOverflow)readNode(l.getOverflowPointerAt(i));
 
-                    // descend to the last page
-                    while(povf.getNextPagePointer() != -1L) {
-                        ovf = povf;
-                        povf = (TreeOverflow)readNode(povf.getNextPagePointer());
-                    }
-
                     // handle singular deletes
                     if(unique) {
+
+                        // descend to the last page
+                        while(povf.getNextPagePointer() != -1L) {
+                            ovf = povf;
+                            povf = (TreeOverflow)readNode(povf.getNextPagePointer());
+                        }
+
                         // remove from the overflow page the value
                         rvals.add(povf.removeLastValue());
                         povf.decrementCapacity();
@@ -691,6 +692,10 @@ public class BPlusTree {
                             // now delete the page
                             deletePage(povf.getPageIndex(), false);
                         }
+                        // we don't have to delete the page, so let's
+                        // update it instead.
+                        else
+                            {povf.writeNode(treeFile, conf, bPerf);}
 
                         // return the result
                         return(new DeleteResult(key, rvals));
@@ -711,6 +716,7 @@ public class BPlusTree {
                                     {povf = (TreeOverflow)readNode(povf.getNextPagePointer());}
                             }
                         }
+                        //TODO
                         /*
                         // set the pointer to the original leaf page to NIL
                         l.setOVerflowPointerAt(i, -1L);
@@ -727,19 +733,19 @@ public class BPlusTree {
                 rvals.add(l.removeEntryAt(i));
 
                 // let's check if we have to perform a leaf merge
-                if(l.isTimeToMerge(conf)) {
+                if(l.isTimeToMerge(conf))
                     // damn, merge needs to happen.
-                    mergeOrRedistributeTreeNodes(l, parent, i);
-                    return(null);
-                }
-                // thankfully we don't need to merge, hence just return.
-                else {
-                    l.writeNode(treeFile, conf, bPerf);
-                    return(new DeleteResult(key, rvals));
-                }
+                    {mergeOrRedistributeTreeNodes(l, parent, i);}
+                // thankfully we don't need to merge, write the node
+                else
+                    {l.writeNode(treeFile, conf, bPerf);}
+
+                // finally return the deleted key and values
+                return(new DeleteResult(key, rvals));
 
             }
 
+            // nothing found, return the empty set.
             else {
                 System.out.println("Key not found");
                 return(new DeleteResult(key, rvals));
@@ -1534,8 +1540,8 @@ public class BPlusTree {
                     conf.getEntrySize() + " trimming...");
             s = s.substring(0, conf.getEntrySize());
         } else if(s.length() < conf.getEntrySize()) {
-            System.out.println("Satellite length can't be less than" +
-                    conf.getEntrySize() + ", adding whitespaces to make up");
+            //System.out.println("Satellite length can't be less than" +
+            //        conf.getEntrySize() + ", adding whitespaces to make up");
             int add = conf.getEntrySize() - s.length();
             for(int i = 0; i < add; i++) {s = s + " ";}
         }
