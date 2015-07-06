@@ -814,7 +814,7 @@ public class BPlusTree {
      * @return true if does, false if it fails the condition
      */
     private boolean isValidAfterRemoval(TreeLeaf node, int remove)
-        {return((node.getCurrentCapacity()-remove) >= conf.getMinInternalNodeCapacity());}
+        {return((node.getCurrentCapacity()-remove) >= conf.getMinLeafNodeCapacity());}
 
     /**
      * Function that is responsible to redistribute values among two leaf nodes
@@ -891,6 +891,113 @@ public class BPlusTree {
         parent.writeNode(treeFile, conf, bPerf);
     }
 
+    private void mergeNodes(TreeNode left, TreeNode right,
+                            TreeNode parent, int pindex)
+            throws InvalidBTreeStateException, IOException {
+        // try to merge two leaves
+        if(left.isLeaf() && right.isLeaf()) {mergeNodes((TreeLeaf)left,
+                (TreeLeaf)right, (TreeInternalNode)parent, pindex);
+        }
+        // try to merge two internal nodes
+        else if(left.isInternalNode() && right.isInternalNode()) {
+            mergeNodes((TreeInternalNode)left,
+                    (TreeInternalNode)right, (TreeInternalNode)parent, pindex);
+        }
+        // throw an exception for the faint of heart
+        else {
+            throw new InvalidBTreeStateException("We cannot merge different " +
+                    "nodes types together");
+        }
+    }
+
+    /**
+     * Function that merges two leaves together; in this case we *must*
+     * have two leaves, left and right that are merged and their parent
+     * that *must* be an internal node (or root).
+     *
+     * We also have the index of the parent that the pointers indicate
+     * these two leaves
+     *
+     * it should be like this:
+     *
+     *            parent
+     *      ... |  key  | ...
+     *           /     \
+     *      | left | right |
+     *
+     *
+     * The merge happens from right -> left thus the final result would
+     * be like this:
+     *
+     *            parent
+     *      ... |  key  | ...
+     *           /     \
+     *      | result |  x
+     *
+     *
+     * So basically we dump the values of right to the left while
+     * updating the pointers.
+     *
+     *
+     *
+     * @param left left-most leaf to merge
+     * @param right right-most leaf to merge
+     * @param parent parent of both leaves (internal node)
+     * @param pindex index of parent that has these two pointers
+     */
+    private void mergeNodes(TreeLeaf left, TreeLeaf right,
+                            TreeInternalNode parent, int pindex)
+            throws IOException {
+        // join the two leaves together.
+        for(int i = 0; i < right.getCurrentCapacity(); i++) {
+            left.addLastToOverflowList(right.popOverflowPointer());
+            left.addLastToValueList(right.popValue());
+            left.addLastToKeyArray(right.popKey());
+            left.incrementCapacity();
+            right.decrementCapacity();
+        }
+        // now fix the top pointer
+
+        // remove the page
+        deletePage(right.getPageIndex(), false);
+    }
+
+    /**
+     * Function that merges two internal nodes together; in this case
+     * we *must* have two internal nodes, left and right that are merged
+     * and their parent that *must* be an internal node (or root).
+     *
+     * We also have the index of the parent that the pointers
+     * indicate these two internal nodes.
+     *
+     * it should be like this:
+     *
+     *            parent
+     *      ... |  key  | ...
+     *           /     \
+     *      | left | right |
+     *
+     * @param left left-most internal node to merge
+     * @param right right-most internal node to merge
+     * @param parent parent of both internal nodes.
+     * @param pindex index of the parent that has these two pointers
+     */
+    private void mergeNodes(TreeInternalNode left, TreeInternalNode right,
+                            TreeInternalNode parent, int pindex)
+            throws IOException {
+        for(int i = 0; i < right.getCurrentCapacity(); i++) {
+            left.addLastToKeyArray(right.popKey());
+            left.addPointerLast(right.popPointer());
+            left.incrementCapacity();
+            right.decrementCapacity();
+        }
+        // now fix the top pointer.
+
+        // finally remove the page
+        deletePage(right.getPageIndex(), false);
+
+    }
+
     public void mergeOrRedistributeTreeNodes(TreeNode mnode, TreeNode parent, int pindex)
             throws IOException, InvalidBTreeStateException {
 
@@ -923,10 +1030,12 @@ public class BPlusTree {
             // we can't redistribute, try merging with next
             else if(npar) {
                 //TODO merge leaf nodes n' stuff
+                //mergeNodes(splitNode, nptr, pNode, pindex);
             }
             // last chance, try merging with prev
             else if(ppar) {
                 //TODO merge leaf nodes n' stuff
+                //mergeNodes(pptr, splitNode, pNode, pindex);
             } else
                 {throw new IllegalStateException("Can't have both leaf " +
                         "pointers null and not be root or no " +
@@ -1375,11 +1484,14 @@ public class BPlusTree {
      * @param pageIndex page index to remove
      * @param sort sort free sort pool?
      */
-    private void deletePage(long pageIndex, boolean sort) {
+    private void deletePage(long pageIndex, boolean sort)
+            throws IOException {
         this.freeSlotPool.add(pageIndex);
         if(sort) {
             Collections.sort(freeSlotPool);
             //TODO Condition the file
+            // commit the lookup page to the file
+            commitLookupPage();
         }
     }
 

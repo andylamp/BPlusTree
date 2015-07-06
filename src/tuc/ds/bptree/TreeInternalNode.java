@@ -38,6 +38,9 @@ public class TreeInternalNode extends TreeNode {
     public void addPointerAt(int index, long val)
         {pointerArray.add(index, val);}
 
+    public void addPointerLast(long val)
+        {pointerArray.addLast(val);}
+
     public void setPointerAt(int index, long val)
         {pointerArray.set(index, val);}
 
