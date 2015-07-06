@@ -1,4 +1,4 @@
-package ds.bplus.p2;
+package ds.bplus.fudger;
 
 import ds.bplus.bptree.BPlusConfiguration;
 import ds.bplus.bptree.BPlusTree;
