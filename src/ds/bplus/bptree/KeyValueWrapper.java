@@ -1,4 +1,4 @@
-package tuc.ds.bptree;
+package ds.bplus.bptree;
 
 /**
  * Wrapper to conveniently return the (Key, Value) pair

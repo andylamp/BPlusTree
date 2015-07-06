@@ -1,6 +1,6 @@
-package tuc.ds.util;
+package ds.bplus.util;
 
-import tuc.ds.bptree.BPlusTree;
+import ds.bplus.bptree.BPlusTree;
 
 import java.io.IOException;
 import java.util.Random;
@@ -23,8 +23,7 @@ public class Utilities {
     public static int randInt(int min, int max) {
         // nextInt is normally exclusive of the top value,
         // so add 1 to make it inclusive
-        int randomNum = rand.nextInt((max - min) + 1) + min;
-        return randomNum;
+        return rand.nextInt((max - min) + 1) + min;
     }
 
     /**

@@ -1,6 +1,6 @@
-package tuc.ds.bptree;
+package ds.bplus.bptree;
 
-import tuc.ds.util.InvalidBTreeStateException;
+import ds.bplus.util.InvalidBTreeStateException;
 
 import java.io.File;
 import java.io.IOException;

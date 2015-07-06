@@ -1,4 +1,4 @@
-package tuc.ds.util;
+package ds.bplus.util;
 /**
  *
  * Courtersy of garanest

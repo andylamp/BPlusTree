@@ -1,6 +1,6 @@
-package tuc.ds.util;
+package ds.bplus.util;
 
-import tuc.ds.bptree.BPlusTreePerformanceCounter;
+import ds.bplus.bptree.BPlusTreePerformanceCounter;
 
 import java.io.IOException;
 
@@ -140,7 +140,7 @@ public class TestRunner {
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         String val = "1234567890";  // default value
-        int key = -1;
+        int key;
         // get a key to insert
         while((key = sin.readPositiveInt("Enter a valid key: ")) == -1)
             {System.out.println("Wrong key... try again");}

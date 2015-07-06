@@ -1,4 +1,4 @@
-package tuc.ds.bptree;
+package ds.bplus.bptree;
 
 import java.util.LinkedList;
 

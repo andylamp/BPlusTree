@@ -1,11 +1,11 @@
-package tuc.ds.p2;
+package ds.bplus.p2;
 
-import tuc.ds.bptree.BPlusConfiguration;
-import tuc.ds.bptree.BPlusTree;
-import tuc.ds.bptree.BPlusTreePerformanceCounter;
-import tuc.ds.util.InvalidBTreeStateException;
-import tuc.ds.util.TestRunner;
-import tuc.ds.util.Utilities;
+import ds.bplus.bptree.BPlusConfiguration;
+import ds.bplus.bptree.BPlusTree;
+import ds.bplus.bptree.BPlusTreePerformanceCounter;
+import ds.bplus.util.InvalidBTreeStateException;
+import ds.bplus.util.TestRunner;
+import ds.bplus.util.Utilities;
 
 import java.io.IOException;
 

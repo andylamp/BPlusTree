@@ -1,5 +1,6 @@
-package tuc.ds.util;
-import tuc.ds.bptree.BPlusTreePerformanceCounter;
+package ds.bplus.util;
+
+import ds.bplus.bptree.BPlusTreePerformanceCounter;
 
 import java.io.IOException;
 
