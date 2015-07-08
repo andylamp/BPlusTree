@@ -158,7 +158,7 @@ public class TestRunner {
      */
     public static void runDeletion(StandardInputRead sin,
                                    BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         String val = "1234567890";  // default value
         int key = -1;
@@ -166,6 +166,7 @@ public class TestRunner {
         while((key = sin.readPositiveInt("Enter a valid key: ")) == -1)
             {System.out.println("Wrong key... try again");}
         // all are verbose
+        bPerf.deleteIO(key, unique, true);
         //bPerf.insertIO(key, val, unique, true);
     }
 

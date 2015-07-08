@@ -251,9 +251,10 @@ public class BPlusTreePerformanceCounter {
     }
 
     public int[] deleteIO(long key, boolean unique, boolean verbose)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         startPageTracking();
-        bt.searchKey(key, unique);
+        bt.deleteKey(key, unique);
+        //bt.searchKey(key, unique);
         if(verbose) {
             System.out.println("Total page reads for this deletion: " + getPageReads());
             System.out.println("Total page writes for this deletion: " + getPageWrites());
@@ -289,6 +290,11 @@ public class BPlusTreePerformanceCounter {
         startPageTracking();
         SearchResult r = bt.searchKey(key, unique);
         if(verbose) {
+            System.out.println("Key " + key +
+                    (r.isFound() ? " has been found" : " was not found"));
+            if(r.isFound()) {
+                System.out.println("Number of results returned: " + r.getValues().size());
+            }
             System.out.println("Total page reads for this search: " + getPageReads());
             System.out.println("Total page writes for this search: " + getPageWrites());
             System.out.println("\nBroken down statistics: ");
@@ -322,8 +328,11 @@ public class BPlusTreePerformanceCounter {
     public int[] rangeIO(long minKey, long maxKey,
                        boolean unique, boolean verbose) throws IOException {
         startPageTracking();
-        bt.rangeSearch(minKey, maxKey, unique);
+        RangeResult rangeQRes =  bt.rangeSearch(minKey, maxKey, unique);
         if(verbose) {
+            System.out.println("Range Query returned: " +
+                    (rangeQRes.getQueryResult() != null ?
+                            (rangeQRes.getQueryResult().size()) : "0") + " results");
             System.out.println("Total page reads for this search: " + getPageReads());
             System.out.println("Total page writes for this search: " + getPageWrites());
             System.out.println("\nBroken down statistics: ");

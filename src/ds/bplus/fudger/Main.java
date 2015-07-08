@@ -13,14 +13,14 @@ public class Main {
 
     public static void main(String[] args)
             throws IOException, InvalidBTreeStateException {
-        boolean fastTrials = true;
+        boolean fastTrials = false;
         boolean recreateTree = true;
         BPlusConfiguration btconf = new BPlusConfiguration();
         BPlusTreePerformanceCounter bPerf = new BPlusTreePerformanceCounter(true);
         BPlusTree bt = new BPlusTree(btconf, recreateTree ? "rw+" : "rw", bPerf);
 
         long skey = 0;
-        long eKey = 100000;
+        long eKey = 20;
         String val = "1234567890";
         boolean unique = true;
         bt.printCurrentConfiguration();
@@ -29,12 +29,18 @@ public class Main {
                     val, unique, bt);
             bPerf.printTotalStatistics();
         }
+        /*
+        for(int i = 0; i < 150; i++)
+            {bt.insertKey(100, "1234567890", false);}
 
+        for(int i = 0; i < 100; i++)
+            {bt.deleteKey(100, true);}
+        */
         if(fastTrials)
             {TestRunner.runDefaultTrialsFast(bPerf);}
         else
             {TestRunner.runBench(bPerf);}
-
+        
         // finally close it.
         bt.commitTree();
 

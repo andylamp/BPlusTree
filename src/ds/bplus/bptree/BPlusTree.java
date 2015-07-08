@@ -128,6 +128,7 @@ public class BPlusTree {
 
             // split root.
             splitTreeNode(tbuf, 0);
+            writeFileHeader(conf);
             insertNonFull(tbuf, key, value, unique);
         }
         else
@@ -620,7 +621,7 @@ public class BPlusTree {
     @SuppressWarnings("unused")
     public DeleteResult deleteKey(long key, boolean unique)
             throws IOException, InvalidBTreeStateException
-        {return(deleteKey(root, null, key, unique));}
+        {return(deleteKey(root, null, -1, key, unique));}
 
     /**
      * That function does the job as described above; to perform easily the deletions
@@ -634,19 +635,25 @@ public class BPlusTree {
      * @param unique unique deletions?
      * @return the number of deleted keys
      */
-    public DeleteResult deleteKey(TreeNode current, TreeNode parent, long key,
-                         boolean unique) throws IOException, InvalidBTreeStateException {
+    public DeleteResult deleteKey(TreeNode current, TreeInternalNode parent, int pindex,
+                                  long key, boolean unique)
+            throws IOException, InvalidBTreeStateException {
         int i = 0;
-        while(i < current.getCurrentCapacity() && key >= current.getKeyAt(i)) {i++;}
+        while(i < current.getCurrentCapacity() && key > current.getKeyAt(i)) {i++;}
 
         // check if it's an internal node
         if(current.isInternalNode()) {
             // if it is, descend to a leaf
             TreeInternalNode inode = (TreeInternalNode)current;
             TreeNode next = readNode(inode.getPointerAt(i));
-            return(deleteKey(next, current, key, unique));
+            // delete result
+            DeleteResult delRes = deleteKey(next, inode /* parent */, i, key, unique);
+            // check if we need to consolidate
+            mergeOrRedistributeTreeNodes(current, parent, pindex);
+            // finally return the resulting set
+            return(delRes);
         }
-
+        // the current node, is a leaf.
         else if(current.isLeaf()) {
             TreeLeaf l = (TreeLeaf)current;
             LinkedList<String> rvals = null;
@@ -735,7 +742,7 @@ public class BPlusTree {
                 // let's check if we have to perform a leaf merge
                 if(l.isTimeToMerge(conf))
                     // damn, merge needs to happen.
-                    {mergeOrRedistributeTreeNodes(l, parent, i);}
+                    {mergeOrRedistributeTreeNodes(l, parent, pindex);}
                 // thankfully we don't need to merge, write the node
                 else
                     {l.writeNode(treeFile, conf, bPerf);}
@@ -750,7 +757,6 @@ public class BPlusTree {
                 System.out.println("Key not found");
                 return(new DeleteResult(key, rvals));
             }
-
         }
         else
             {throw new IllegalStateException("Read unknown or overflow page while descending");}
@@ -897,17 +903,27 @@ public class BPlusTree {
         parent.writeNode(treeFile, conf, bPerf);
     }
 
+    //TODO fix the redistribution of internal nodes
+    private void redistributeNodes(TreeInternalNode to, TreeInternalNode with,
+                                   int elements, boolean left,
+                                   TreeInternalNode parent, int index) {
+        long key;
+
+    }
+
     private void mergeNodes(TreeNode left, TreeNode right,
-                            TreeNode parent, int pindex)
+                            TreeNode parent, int pindex, boolean usingNext)
             throws InvalidBTreeStateException, IOException {
         // try to merge two leaves
-        if(left.isLeaf() && right.isLeaf()) {mergeNodes((TreeLeaf)left,
-                (TreeLeaf)right, (TreeInternalNode)parent, pindex);
+        if(left.isLeaf() && right.isLeaf()) {mergeNodes((TreeLeaf) left,
+                (TreeLeaf) right, (TreeInternalNode) parent,
+                pindex, usingNext);
         }
         // try to merge two internal nodes
         else if(left.isInternalNode() && right.isInternalNode()) {
             mergeNodes((TreeInternalNode)left,
-                    (TreeInternalNode)right, (TreeInternalNode)parent, pindex);
+                    (TreeInternalNode)right, (TreeInternalNode)parent,
+                    pindex, usingNext);
         }
         // throw an exception for the faint of heart
         else {
@@ -952,7 +968,7 @@ public class BPlusTree {
      * @param pindex index of parent that has these two pointers
      */
     private void mergeNodes(TreeLeaf left, TreeLeaf right,
-                            TreeInternalNode parent, int pindex)
+                            TreeInternalNode parent, int pindex, boolean usingNext)
             throws IOException {
         // join the two leaves together.
         for(int i = 0; i < right.getCurrentCapacity(); i++) {
@@ -963,6 +979,8 @@ public class BPlusTree {
             right.decrementCapacity();
         }
         // now fix the top pointer
+        updateParentPointerAfterMerge(left, parent, pindex, usingNext);
+
 
         // remove the page
         deletePage(right.getPageIndex(), false);
@@ -989,7 +1007,7 @@ public class BPlusTree {
      * @param pindex index of the parent that has these two pointers
      */
     private void mergeNodes(TreeInternalNode left, TreeInternalNode right,
-                            TreeInternalNode parent, int pindex)
+                            TreeInternalNode parent, int pindex, boolean usingNext)
             throws IOException {
         for(int i = 0; i < right.getCurrentCapacity(); i++) {
             left.addLastToKeyArray(right.popKey());
@@ -998,14 +1016,56 @@ public class BPlusTree {
             right.decrementCapacity();
         }
         // now fix the top pointer.
+        updateParentPointerAfterMerge(left, parent, pindex, usingNext);
 
         // finally remove the page
         deletePage(right.getPageIndex(), false);
-
     }
 
-    public void mergeOrRedistributeTreeNodes(TreeNode mnode, TreeNode parent, int pindex)
+    /**
+     * This function updates the parent node after merging two of it's children.
+     *
+     *
+     * @param left left node in each case
+     * @param parent the parent node
+     * @param pindex the index of the split node
+     * @param usingNext which bucket are we using the previous or next
+     * @throws IOException
+     */
+    private void updateParentPointerAfterMerge(TreeNode left, TreeInternalNode parent,
+                                               int pindex, boolean usingNext)
+            throws IOException {
+        // in case that we are using next bucket (so split node is the *left* one)
+        // we have to remove the next pointer/key in line while we add the
+        // last value of the transferred bucket to the left one
+        if(usingNext) {
+            parent.setKeyArrayAt(pindex, left.getLastKey());
+            parent.removeKeyPointerTupleAt(pindex+1);
+        }
+        // in the other case that we use the prev bucket (so the split node is
+        // the *right* one) we have to remove the *current* pointer/key. In this
+        // case we *do not* have tgo update the value that is pointed in the parent
+        // node
+        else
+            {parent.removeKeyPointerTupleAt(pindex-1);}
+
+        // finally update the pages
+        left.writeNode(treeFile, conf, bPerf);
+        parent.writeNode(treeFile, conf, bPerf);
+    }
+
+    //TODO delete the pindex and find it inside it.
+    public void mergeOrRedistributeTreeNodes(TreeNode mnode,
+                                             TreeInternalNode parent, int pindex)
             throws IOException, InvalidBTreeStateException {
+        //int pindex = -1;
+
+        // no need to perform a consolidation
+        if(!mnode.isTimeToMerge(conf))
+            {mnode.writeNode(treeFile, conf, bPerf); return;}
+
+
+        if(pindex < 0) {throw new IllegalStateException("index < 0");}
 
         // merging a leaf requires the most amount of work, since
         // all leaves by definition are linked in a doubly-linked
@@ -1013,7 +1073,6 @@ public class BPlusTree {
         // to make sure those links are consistent
         if(mnode.isLeaf()) {
             TreeLeaf splitNode = (TreeLeaf)mnode;
-            TreeInternalNode pNode = (TreeInternalNode)parent;
             TreeLeaf nptr, pptr;
 
             // load the pointers
@@ -1022,26 +1081,26 @@ public class BPlusTree {
 
             int nnum = canRedistribute(nptr);
             int pnum = canRedistribute(pptr);
-            boolean npar = isParent(nptr, pNode, pindex+1);
-            boolean ppar = isParent(pptr, pNode, pindex-1);
+            boolean npar = isParent(nptr, parent, pindex+1);
+            boolean ppar = isParent(pptr, parent, pindex-1);
 
             // check if we can redistribute with next
             if(nnum > 0 && npar) {
-                redistributeNodes(splitNode, nptr, nnum, false, pNode, pindex);
+                redistributeNodes(splitNode, nptr, nnum, false, parent, pindex);
             }
             // now check if we can redistribute with prev
             else if(pnum > 0 && ppar) {
-                redistributeNodes(splitNode, pptr, pnum, true, pNode, pindex);
+                redistributeNodes(splitNode, pptr, pnum, true, parent, pindex);
             }
             // we can't redistribute, try merging with next
             else if(npar) {
                 //TODO merge leaf nodes n' stuff
-                //mergeNodes(splitNode, nptr, pNode, pindex);
+                //mergeNodes(splitNode, nptr, pNode, pindex, true);
             }
             // last chance, try merging with prev
             else if(ppar) {
                 //TODO merge leaf nodes n' stuff
-                //mergeNodes(pptr, splitNode, pNode, pindex);
+                //mergeNodes(pptr, splitNode, pNode, pindex, false);
             } else
                 {throw new IllegalStateException("Can't have both leaf " +
                         "pointers null and not be root or no " +
@@ -1133,7 +1192,7 @@ public class BPlusTree {
      */
     private void commitLookupPage() throws IOException {
         // seek to the position we have to start to write
-        treeFile.seek(conf.getLookupPageOffset());
+        treeFile.seek(conf.getHeaderSize());
         // now write
         for(long i : freeSlotPool)
             {treeFile.writeLong(i);}
@@ -1282,6 +1341,7 @@ public class BPlusTree {
         if(totalTreePages < 0)
             {throw new InvalidBTreeStateException("Tree page number cannot be < 0");}
 
+
         // read the max page offset
         maxPageIndex = r.readLong();
 
@@ -1319,6 +1379,7 @@ public class BPlusTree {
         treeFile.writeInt(conf.getEntrySize());
         treeFile.writeInt(conf.getKeySize());
         treeFile.writeLong(totalTreePages);
+        treeFile.writeLong(maxPageIndex);
         treeFile.writeLong(root.getPageIndex());
     }
 
@@ -1367,7 +1428,7 @@ public class BPlusTree {
      * @throws IOException
      */
     public void commitTree() throws IOException
-        {commitLookupPage(); this.treeFile.close();}
+        {writeFileHeader(conf); commitLookupPage(); this.treeFile.close();}
 
     /**
      * This function initializes the look-up page; in the simple
@@ -1493,6 +1554,7 @@ public class BPlusTree {
     private void deletePage(long pageIndex, boolean sort)
             throws IOException {
         this.freeSlotPool.add(pageIndex);
+        this.totalTreePages--;
         if(sort) {
             Collections.sort(freeSlotPool);
             //TODO Condition the file
