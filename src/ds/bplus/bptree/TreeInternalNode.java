@@ -51,6 +51,9 @@ public class TreeInternalNode extends TreeNode {
     public int getPointerListSize()
         {return(pointerArray.size());}
 
+    public void pushToPointerArray(long val)
+        {pointerArray.push(val);}
+
 
     /**
      *

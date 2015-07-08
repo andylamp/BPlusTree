@@ -649,7 +649,8 @@ public class BPlusTree {
             // delete result
             DeleteResult delRes = deleteKey(next, inode /* parent */, i, key, unique);
             // check if we need to consolidate
-            mergeOrRedistributeTreeNodes(current, parent, pindex);
+            if(current.isTimeToMerge(conf))
+                {mergeOrRedistributeTreeNodes(current, parent, pindex);}
             // finally return the resulting set
             return(delRes);
         }
@@ -903,12 +904,77 @@ public class BPlusTree {
         parent.writeNode(treeFile, conf, bPerf);
     }
 
-    //TODO fix the redistribution of internal nodes
+    /**
+     * Function that is responsible to redistribute values among two internal nodes
+     * while updating the referring key of the parent node (always an internal node).
+     *
+     *
+     * We have two distinct cases which are the following:
+     *
+     * This case is when we use the prev pointer:
+     *
+     * |--------|  <-----  |--------|
+     * |  with  |          |   to   |
+     * |--------|  ----->  |--------|
+     *
+     * In this case we  *remove* the *last* n elements from with
+     * and *push* them (in the order removed) into the destination node
+     *
+     * The parent key-pointer is updated with the first value of the
+     * receiving node.
+     *
+     * The other case is when we use the next pointer:
+     *
+     * |--------|  <-----  |--------|
+     * |   to   |          |  with  |
+     * |--------|  ----->  |--------|
+     *
+     * In this case we *remove* the *first* n elements from with and
+     * add them *last* (in the order removed) into the destination node.
+     *
+     * The parent key-pointer is updated with the first value of the
+     * node we retrieved the values.
+     *
+     *
+     *
+     * @param to node to receive (Key, Value) pairs
+     * @param with node that we take the (Key, Value) pairs
+     * @param elements number of elements to remove
+     * @param left if left is true, then we use prev leaf else next
+     * @param parent the internal node parenting both
+     * @param index index of the parent that refers to this pair
+     */
     private void redistributeNodes(TreeInternalNode to, TreeInternalNode with,
                                    int elements, boolean left,
-                                   TreeInternalNode parent, int index) {
+                                   TreeInternalNode parent, int index)
+            throws IOException {
         long key;
 
+        if(left) {
+            for(int i = 0; i < elements; i++) {
+                to.pushToKeyArray(with.removeLastKey());
+                to.pushToPointerArray(with.removeLastPointer());
+                to.incrementCapacity();
+                with.incrementCapacity();
+            }
+            key = to.getKeyAt(0);
+        }
+        // handle the case when redistributing using next
+        else {
+            for(int i = 0; i < elements; i++) {
+                to.addLastToKeyArray(with.popKey());
+                to.addPointerLast(with.popPointer());
+                to.incrementCapacity();
+                with.decrementCapacity();
+            }
+            key = with.getKeyAt(0);
+        }
+        // in either case update the parent key
+        parent.setKeyArrayAt(index, key);
+        // finally write the chances
+        to.writeNode(treeFile, conf, bPerf);
+        with.writeNode(treeFile, conf, bPerf);
+        parent.writeNode(treeFile, conf, bPerf);
     }
 
     private void mergeNodes(TreeNode left, TreeNode right,
@@ -966,6 +1032,7 @@ public class BPlusTree {
      * @param right right-most leaf to merge
      * @param parent parent of both leaves (internal node)
      * @param pindex index of parent that has these two pointers
+     * @param usingNext this indicates which is the joining node, next or prev
      */
     private void mergeNodes(TreeLeaf left, TreeLeaf right,
                             TreeInternalNode parent, int pindex, boolean usingNext)
@@ -980,7 +1047,6 @@ public class BPlusTree {
         }
         // now fix the top pointer
         updateParentPointerAfterMerge(left, parent, pindex, usingNext);
-
 
         // remove the page
         deletePage(right.getPageIndex(), false);
@@ -1005,6 +1071,7 @@ public class BPlusTree {
      * @param right right-most internal node to merge
      * @param parent parent of both internal nodes.
      * @param pindex index of the parent that has these two pointers
+     * @param usingNext this indicates which is the joining node, next or prev
      */
     private void mergeNodes(TreeInternalNode left, TreeInternalNode right,
                             TreeInternalNode parent, int pindex, boolean usingNext)
@@ -1058,13 +1125,8 @@ public class BPlusTree {
     public void mergeOrRedistributeTreeNodes(TreeNode mnode,
                                              TreeInternalNode parent, int pindex)
             throws IOException, InvalidBTreeStateException {
-        //int pindex = -1;
 
-        // no need to perform a consolidation
-        if(!mnode.isTimeToMerge(conf))
-            {mnode.writeNode(treeFile, conf, bPerf); return;}
-
-
+        // that index should not be present
         if(pindex < 0) {throw new IllegalStateException("index < 0");}
 
         // merging a leaf requires the most amount of work, since
@@ -1112,6 +1174,8 @@ public class BPlusTree {
         // currently pulled nodes.
         else if(mnode.isInternalNode()) {
             TreeInternalNode splitNode = (TreeInternalNode)mnode;
+            TreeInternalNode npre, pptr;
+
 
         } else
             {throw new IllegalStateException("Read unknown or overflow page while merging");}
