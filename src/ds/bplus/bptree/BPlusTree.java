@@ -987,6 +987,7 @@ public class BPlusTree {
         parent.writeNode(treeFile, conf, bPerf);
     }
 
+    /*
     private void mergeNodes(TreeNode left, TreeNode right,
                             TreeNode parent, int pindex, boolean usingNext)
             throws InvalidBTreeStateException, IOException {
@@ -1007,6 +1008,7 @@ public class BPlusTree {
                     "nodes types together");
         }
     }
+    */
 
     /**
      * Function that merges two leaves together; in this case we *must*
@@ -1045,7 +1047,7 @@ public class BPlusTree {
      */
     private void mergeNodes(TreeLeaf left, TreeLeaf right,
                             TreeInternalNode parent, int parentPointerIndex,
-                            int parentKeyIndex, boolean usingNext)
+                            int parentKeyIndex)
             throws IOException {
         // join the two leaves together.
         for(int i = 0; i < right.getCurrentCapacity(); i++) {
@@ -1082,11 +1084,10 @@ public class BPlusTree {
      * @param right right-most internal node to merge
      * @param parent parent of both internal nodes.
      * @param parentPointerIndex index of the parent that has these two pointers
-     * @param usingNext this indicates which is the joining node, next or prev
      */
     private void mergeNodes(TreeInternalNode left, TreeInternalNode right,
                             TreeInternalNode parent, int parentPointerIndex,
-                            int parentKeyIndex, boolean usingNext)
+                            int parentKeyIndex)
             throws IOException {
         for(int i = 0; i < right.getCurrentCapacity(); i++) {
             left.addLastToKeyArray(right.popKey());
@@ -1162,14 +1163,14 @@ public class BPlusTree {
             // we can't redistribute, try merging with next
             else if(npar) {
                 //TODO merge leaf nodes n' stuff
-                mergeNodes(splitNode, nptr, parent, parentPointerIndex,
-                        parentKeyIndex, true /* using next */);
+                mergeNodes(splitNode, nptr, parent,
+                        parentPointerIndex, parentKeyIndex);
             }
             // last chance, try merging with prev
             else if(ppar) {
                 //TODO merge leaf nodes n' stuff
-                mergeNodes(pptr, splitNode, parent, parentPointerIndex,
-                        parentKeyIndex, false /* using prev */);
+                mergeNodes(pptr, splitNode, parent,
+                        parentPointerIndex, parentKeyIndex);
             } else
                 {throw new IllegalStateException("Can't have both leaf " +
                         "pointers null and not be root or no " +
