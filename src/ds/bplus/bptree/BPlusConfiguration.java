@@ -28,7 +28,7 @@ public class BPlusConfiguration {
      *
      */
     public BPlusConfiguration() {
-        this.pageSize = 512;                           // page size (in bytes)
+        this.pageSize = 180;                           // page size (in bytes)
         this.entrySize = 20;                            // each entry size (in bytes)
         this.keySize = 8;                               // key size (in bytes)
         this.headerSize =                               // header size in bytes

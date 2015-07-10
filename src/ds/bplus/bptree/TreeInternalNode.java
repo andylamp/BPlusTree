@@ -27,8 +27,8 @@ public class TreeInternalNode extends TreeNode {
     }
 
 
-    public void removeKeyPointerTupleAt(int index)
-        {keyArray.remove(index); pointerArray.remove(index);}
+    public void removePointerAt(int index)
+        {pointerArray.remove(index);}
 
     public long getPointerAt(int index)
         {return(pointerArray.get(index));}

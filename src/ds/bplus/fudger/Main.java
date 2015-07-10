@@ -20,7 +20,7 @@ public class Main {
         BPlusTree bt = new BPlusTree(btconf, recreateTree ? "rw+" : "rw", bPerf);
 
         long skey = 0;
-        long eKey = 20;
+        long eKey = 6;
         String val = "1234567890";
         boolean unique = true;
         bt.printCurrentConfiguration();

@@ -226,6 +226,14 @@ public abstract class TreeNode {
         {return keyArray.getLast();}
 
     /**
+     * Get first key
+     *
+     * @return return the first key value
+     */
+    public long getFirstKey()
+        {return keyArray.getFirst();}
+
+    /**
      * Pop the key at the head of the array
      *
      * @return key that is in the head of the array

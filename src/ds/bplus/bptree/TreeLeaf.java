@@ -87,8 +87,9 @@ public class TreeLeaf extends TreeNode {
     public String removeEntryAt(int index) {
         keyArray.remove(index);
         overflowList.remove(index);
+        String s = valueList.remove(index);
         decrementCapacity();
-        return(valueList.remove(index));
+        return(s);
     }
 
     public void setPrevPagePointer(long prevPagePointer)
