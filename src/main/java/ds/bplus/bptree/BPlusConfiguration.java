@@ -6,7 +6,6 @@ package ds.bplus.bptree;
  *
  * You can view a description on all of the parameters below...
  *
- *
  */
 public class BPlusConfiguration {
 

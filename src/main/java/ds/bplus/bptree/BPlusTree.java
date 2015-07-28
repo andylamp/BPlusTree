@@ -639,12 +639,23 @@ public class BPlusTree {
                                   int parentPointerIndex, int parentKeyIndex,
                                   long key, boolean unique)
             throws IOException, InvalidBTreeStateException {
+
+        // check if we need to consolidate
+        if(current.isTimeToMerge(conf)) {
+            System.out.println("Parent needs merging (internal node)");
+            TreeNode mres = mergeOrRedistributeTreeNodes(current, parent,
+                    parentPointerIndex, parentKeyIndex);
+            if(mres != null)
+                {current = mres;}
+        }
+
         int i = 0;
-        int loc = -1;
+        int loc;
         long tempKey = -1L;
         LinkedList<String> rvals = null;
         while(i < current.getCurrentCapacity() && key >= current.getKeyAt(i))
             {tempKey = current.getKeyAt(i); i++;}
+
 
         // check if it's an internal node
         if(current.isInternalNode()) {
@@ -656,25 +667,21 @@ public class BPlusTree {
             int keyLocation = (key >= tempKey) ? (i-1) : i;
 
             // delete result
-            DeleteResult delRes = deleteKey(next, inode /* parent */, i, keyLocation, key, unique);
-            // check if we need to consolidate
-            //if(current.isTimeToMerge(conf))
-            //    {mergeOrRedistributeTreeNodes(current, parent, pindex);}
+            //DeleteResult delRes = deleteKey(next, inode /* parent */,
+            //        i, keyLocation, key, unique);
+
             // finally return the resulting set
-            return(delRes);
+            return(deleteKey(next, inode, i, keyLocation, key, unique));
         }
         // the current node, is a leaf.
         else if(current.isLeaf()) {
             TreeLeaf l = (TreeLeaf)current;
             i--;
 
-            if(i == l.getCurrentCapacity()) {
-                System.out.println("Key not found");
-                return(new DeleteResult(key, rvals));
-            }
-
-            if(key != l.getKeyAt(i)) {
-                System.out.println("Key not found");
+            // check if we actually found the key
+            if(i == l.getCurrentCapacity() ||
+                    key != l.getKeyAt(i)) {
+                System.out.println("Key with value: " + key + " not found");
                 return (new DeleteResult(key, rvals));
             }
             else {
@@ -748,7 +755,9 @@ public class BPlusTree {
                 }
             }
 
-            loc = i;
+            //loc = i;
+            rvals.add(((TreeLeaf)current).removeEntryAt(i));
+            current.writeNode(treeFile, conf, bPerf);
         }
         else
             {throw new IllegalStateException("Read unknown or overflow page while descending");}
@@ -758,13 +767,15 @@ public class BPlusTree {
         // we reached here because either we have no overflow page
         // or non-unique deletes with overflow pages. We should
         // reach this point after we purged all the overflow pages.
-        rvals.add(((TreeLeaf)current).removeEntryAt(loc));
+        //rvals.add(((TreeLeaf)current).removeEntryAt(loc));
+        /*
         if(current.isTimeToMerge(conf)) {
             System.out.println("Time to merge a leaf");
             mergeOrRedistributeTreeNodes(current, parent, parentPointerIndex, parentKeyIndex);
         }
-        else
-            {current.writeNode(treeFile, conf, bPerf);}
+        */
+        //else
+        //    {current.writeNode(treeFile, conf, bPerf);}
         return(new DeleteResult(key, rvals));
     }
 
@@ -1045,12 +1056,13 @@ public class BPlusTree {
      * @param parent parent of both leaves (internal node)
      * @param parentPointerIndex index of parent that has these two pointers
      */
-    private void mergeNodes(TreeLeaf left, TreeLeaf right,
+    private TreeNode mergeNodes(TreeLeaf left, TreeLeaf right,
                             TreeInternalNode parent, int parentPointerIndex,
                             int parentKeyIndex)
             throws IOException {
         // join the two leaves together.
-        for(int i = 0; i < right.getCurrentCapacity(); i++) {
+        int cap = right.getCurrentCapacity();
+        for(int i = 0; i < cap; i++) {
             left.addLastToOverflowList(right.popOverflowPointer());
             left.addLastToValueList(right.popValue());
             left.addLastToKeyArray(right.popKey());
@@ -1060,6 +1072,31 @@ public class BPlusTree {
         // now fix the top pointer
         updateParentPointerAfterMerge(left, parent,
                 parentPointerIndex, parentKeyIndex);
+
+        // remove the page
+        deletePage(right.getPageIndex(), false);
+        // finally return the node reference
+        return(left);
+    }
+
+    /**
+     * Naive merge of two leaf nodes from right to left.
+     *
+     * @param left node that merge ends
+     * @param right node that is deleted during merge
+     * @throws IOException
+     */
+    private void mergeNodes(TreeLeaf left, TreeLeaf right)
+            throws IOException {
+        // join the two leaves together.
+        int cap = right.getCurrentCapacity();
+        for(int i = 0; i < cap; i++) {
+            left.addLastToOverflowList(right.popOverflowPointer());
+            left.addLastToValueList(right.popValue());
+            left.addLastToKeyArray(right.popKey());
+            left.incrementCapacity();
+            right.decrementCapacity();
+        }
 
         // remove the page
         deletePage(right.getPageIndex(), false);
@@ -1085,11 +1122,12 @@ public class BPlusTree {
      * @param parent parent of both internal nodes.
      * @param parentPointerIndex index of the parent that has these two pointers
      */
-    private void mergeNodes(TreeInternalNode left, TreeInternalNode right,
+    private TreeNode mergeNodes(TreeInternalNode left, TreeInternalNode right,
                             TreeInternalNode parent, int parentPointerIndex,
                             int parentKeyIndex)
             throws IOException {
-        for(int i = 0; i < right.getCurrentCapacity(); i++) {
+        int cap = right.getCurrentCapacity();
+        for(int i = 0; i < cap; i++) {
             left.addLastToKeyArray(right.popKey());
             left.addPointerLast(right.popPointer());
             left.incrementCapacity();
@@ -1098,6 +1136,29 @@ public class BPlusTree {
         // now fix the top pointer.
         updateParentPointerAfterMerge(left, parent,
                 parentPointerIndex, parentKeyIndex);
+
+        // remove the page
+        deletePage(right.getPageIndex(), false);
+        // finally remove the node reference
+        return(left);
+    }
+
+    /**
+     * Naive merge of two internal nodes from right to left.
+     *
+     * @param left node that merge ends
+     * @param right node that is deleted during merge
+     * @throws IOException
+     */
+    private void mergeNodes(TreeInternalNode left, TreeInternalNode right)
+            throws IOException {
+        int cap = right.getCurrentCapacity();
+        for(int i = 0; i < cap; i++) {
+            left.addLastToKeyArray(right.popKey());
+            left.addPointerLast(right.popPointer());
+            left.incrementCapacity();
+            right.decrementCapacity();
+        }
 
         // finally remove the page
         deletePage(right.getPageIndex(), false);
@@ -1128,18 +1189,82 @@ public class BPlusTree {
     }
 
     //TODO delete the pindex and find it inside it.
-    public void mergeOrRedistributeTreeNodes(TreeNode mnode, TreeInternalNode parent,
+    public TreeNode mergeOrRedistributeTreeNodes(TreeNode mnode, TreeInternalNode parent,
                                              int parentPointerIndex, int parentKeyIndex)
             throws IOException, InvalidBTreeStateException {
 
         // that index should not be present
-        if(parentPointerIndex < 0) {throw new IllegalStateException("index < 0");}
+        if(parent != null && parentPointerIndex < 0)
+            {throw new IllegalStateException("index < 0");}
 
+        //TODO test it!
+        // this is the only case that the tree shrinks, from the root.
+        if(parent == null) {
+            if(mnode.isInternalNode()) {
+                System.out.println("\n -- Consolidating Root");
+                TreeInternalNode splitNode = (TreeInternalNode)mnode;
+                // read up their pointers
+                TreeNode lChild, rChild;
+
+                // load the pointers
+                lChild = readNode(splitNode.getPointerAt(0));
+                rChild = readNode(splitNode.getPointerAt(1));
+
+                // check if we need to merge
+                if(!(lChild.getCurrentCapacity() == rChild.getCurrentCapacity() &&
+                        rChild.isTimeToMerge(conf)))
+                    // apparently, no need to.
+                    {return null;}
+
+                // check their type
+                if(lChild.isLeaf()) {
+                    TreeLeaf lLeaf = (TreeLeaf)lChild,
+                             rLeaf = (TreeLeaf)rChild;
+
+                    // now merge them, and delete root page, while
+                    // updating it's page number etc
+                    mergeNodes(lLeaf, rLeaf);
+
+                    // update root page
+                    lLeaf.setNodeType(TreeNodeType.TREE_ROOT_LEAF);
+                    // update the leaf pointers
+                    lLeaf.setNextPagePointer(-1L);
+                    lLeaf.setPrevPagePointer(-1L);
+                } else if(lChild.isInternalNode()) {
+                    TreeInternalNode lIntNode = (TreeInternalNode)lChild,
+                                     rIntNode = (TreeInternalNode)rChild;
+
+                    // now merge them, and delete root page, while
+                    // updating it's page number etc
+                    mergeNodes(lIntNode, rIntNode);
+
+                    // update root page
+                    lIntNode.setNodeType(TreeNodeType.TREE_ROOT_INTERNAL);
+                } else {
+                    throw new InvalidBTreeStateException("Unknown children type");
+                }
+
+                // delete previous root page
+                deletePage(root.getPageIndex(), false);
+                // set root page
+                root = lChild;
+                // write root header
+                writeFileHeader(conf);
+                // write left leaf
+                lChild.writeNode(treeFile, conf, bPerf);
+
+                // since we have a new root
+                return(lChild);
+
+            } else if(!mnode.isLeaf()) {
+                throw new InvalidBTreeStateException("Invalid tree Root type.");
+            }
+        }
         // merging a leaf requires the most amount of work, since
         // all leaves by definition are linked in a doubly-linked
         // linked-list; hence when we merge/remove a node we have
         // to make sure those links are consistent
-        if(mnode.isLeaf()) {
+        else if(mnode.isLeaf()) {
             TreeLeaf splitNode = (TreeLeaf)mnode;
             TreeLeaf nptr, pptr;
 
@@ -1162,36 +1287,69 @@ public class BPlusTree {
             }
             // we can't redistribute, try merging with next
             else if(npar) {
-                //TODO merge leaf nodes n' stuff
-                mergeNodes(splitNode, nptr, parent,
+                mnode = mergeNodes(splitNode, nptr, parent,
                         parentPointerIndex, parentKeyIndex);
             }
             // last chance, try merging with prev
             else if(ppar) {
-                //TODO merge leaf nodes n' stuff
-                mergeNodes(pptr, splitNode, parent,
+                mnode = mergeNodes(pptr, splitNode, parent,
                         parentPointerIndex, parentKeyIndex);
             } else
                 {throw new IllegalStateException("Can't have both leaf " +
                         "pointers null and not be root or no " +
                         "common parent");}
+
+            //TODO
+            return(mnode);
         }
 
         // we have to merge internal nodes, this is the somewhat easy
         // case, since we do not have to update any more links than the
         // currently pulled nodes.
         else if(mnode.isInternalNode()) {
-            TreeInternalNode splitNode = (TreeInternalNode)mnode;
-            TreeInternalNode npre, pptr;
+            System.out.println("Internal node merging needs to happen");
 
-            // check if we are at root.
-            if(mnode.isRoot()) {
-                // do another case.
+            TreeInternalNode splitNode = (TreeInternalNode)mnode;
+            TreeInternalNode nptr, pptr;
+
+            // load the adjacent nodes
+            nptr = (TreeInternalNode)readNode(parent.getPointerAt(parentPointerIndex+1));
+            pptr = (TreeInternalNode)readNode(parent.getPointerAt(parentPointerIndex-1));
+
+            int nnum = canRedistribute(nptr);
+            int pnum = canRedistribute(pptr);
+
+            // check if we can redistribute with the next node
+            if(nnum > 0) {
+                redistributeNodes(splitNode, nptr, nnum, false, parent, parentKeyIndex);
+            }
+            // check if we can redistribute with the previous node
+            else if(pnum > 0) {
+                redistributeNodes(splitNode, pptr, pnum, true, parent, parentKeyIndex);
+            }
+            // can't redistribute; merging needs to happen, check which has t-1 elements
+            else {
+                // check if we can merge with the right node
+                if(nptr.isTimeToMerge(conf)) {
+                    mnode = mergeNodes(splitNode, nptr, parent,
+                            parentPointerIndex, parentKeyIndex);
+                }
+                // now, check if we can merge with the left node
+                else if(pptr.isTimeToMerge(conf)) {
+                    mnode = mergeNodes(pptr, splitNode, parent,
+                            parentPointerIndex, parentKeyIndex);
+                } else {
+                    throw new InvalidBTreeStateException("Can't merge or " +
+                            "redistribute, corrupted file?");
+                }
             }
 
-
+            return(mnode);
         } else
             {throw new IllegalStateException("Read unknown or overflow page while merging");}
+
+        // probably we didn't change something
+        return null;
     }
 
     /**

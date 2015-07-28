@@ -36,6 +36,10 @@ public class Main {
         for(int i = 0; i < 100; i++)
             {bt.deleteKey(100, true);}
         */
+
+        for(int i = 5; i >= 0; i--) {
+            bt.deleteKey(i, true);
+        }
         if(fastTrials)
             {TestRunner.runDefaultTrialsFast(bPerf);}
         else

@@ -30,8 +30,8 @@ public class TreeInternalNode extends TreeNode {
     public void removePointerAt(int index)
         {pointerArray.remove(index);}
 
-    public long getPointerAt(int index)
-        {return(pointerArray.get(index));}
+    public long getPointerAt(int index) {
+        return((index < 0 || index >= pointerArray.size()) ? -1 : pointerArray.get(index));}
 
     public long popPointer()
         {return(pointerArray.pop());}
