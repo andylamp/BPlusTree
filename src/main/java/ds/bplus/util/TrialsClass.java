@@ -128,16 +128,17 @@ public class TrialsClass {
      */
     public static void runDeletionTrials(int trials, int rmin, int rmax, boolean unique,
                                          BPlusTreePerformanceCounter bPerf,
-                                         boolean verbose) {
+                                         boolean verbose)
+            throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;
         int stats[];
 
         // trial loop
         for(int i = 0; i < trials; i++) {
-            //stats = bPerf.rangeIO(rtmin, rtmax, unique, verbose);
-            //pageReads += stats[0];
-            //pageWrites += stats[1];
+            stats = bPerf.deleteIO(Utilities.randInt(rmin, rmax), unique, verbose);
+            pageReads += stats[0];
+            pageWrites += stats[1];
         }
 
         System.out.println("\nPerformed " + trials + " deletion trials");

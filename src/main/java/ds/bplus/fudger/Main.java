@@ -3,6 +3,7 @@ package ds.bplus.fudger;
 import ds.bplus.bptree.BPlusConfiguration;
 import ds.bplus.bptree.BPlusTree;
 import ds.bplus.bptree.BPlusTreePerformanceCounter;
+import ds.bplus.bptree.SearchResult;
 import ds.bplus.util.InvalidBTreeStateException;
 import ds.bplus.util.TestRunner;
 import ds.bplus.util.Utilities;
@@ -41,7 +42,7 @@ public class Main {
 
 
 
-        int flag = 2;
+        int flag = 6;
 
         if(flag == 1) {
             for(int i = 99; i > 0; i--) {
@@ -121,6 +122,27 @@ public class Main {
                 bt.deleteKey(l.remove(index), true);
             }
 
+            Utilities.sequentialAddToTree(skey, eKey,
+                    val, unique, bt);
+
+            for(int i = 0; i < 100; i++) {
+                l.add(i);
+            }
+
+            for(int i = 0; i < 50; i++) {
+                index = r.nextInt(l.size());
+                bt.deleteKey(l.remove(index), true);
+            }
+
+            for(int i = 0; i < 50; i++) {
+                index = r.nextInt(l.size());
+                SearchResult sres = bt.searchKey(l.remove(index), false);
+                if(sres.isFound()) {
+                    System.out.println(" -- Key " + sres.getKey() + " is found");
+                } else {
+                    System.out.println(" -- Key " + sres.getKey() + " is NOT found");
+                }
+            }
         }
 
 

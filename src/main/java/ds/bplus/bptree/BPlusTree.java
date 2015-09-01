@@ -1282,7 +1282,8 @@ public class BPlusTree {
         updateParentPointerAfterMerge(parent,
                 useNextPointer ? (parentPointerIndex+1) : parentPointerIndex,
                 (isLeftOfNext && useNextPointer) ? (parentKeyIndex+1) : parentKeyIndex);
-
+        // write the node
+        left.writeNode(treeFile, conf, bPerf);
         // remove the page
         deletePage(right.getPageIndex(), false);
         // finally remove the node reference
@@ -1431,7 +1432,6 @@ public class BPlusTree {
                                      lIntNode = (TreeInternalNode)lChild,
                                      rIntNode = (TreeInternalNode)rChild;
 
-                    boolean splitNodeIsRightChild = parentKeyIndex == parentPointerIndex;
                     int nnum = canRedistribute(rIntNode);
                     int pnum = canRedistribute(lIntNode);
 

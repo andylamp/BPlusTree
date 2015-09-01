@@ -237,6 +237,7 @@ public class TestRunner {
             throws IOException, InvalidBTreeStateException {
         TrialsClass.runSearchTrial(trials, vmin, vmax, unique, bPerf, verbose);
         TrialsClass.runInsertTrial(trials, vmin, vmax, val, unique, bPerf, verbose);
+        TrialsClass.runDeletionTrials(trials, vmin, vmax, unique, bPerf, verbose);
         TrialsClass.runRangeQueryTrial(trials, vmin, vmax, qrange, unique, bPerf, verbose);
     }
 }
