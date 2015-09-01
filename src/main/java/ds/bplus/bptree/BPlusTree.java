@@ -696,54 +696,24 @@ public class BPlusTree {
         }
 
         int i = 0;
-        long tkey = current.getFirstKey();
         LinkedList<String> rvals = null;
-        while(i < current.getCurrentCapacity()-1 && key > current.getKeyAt(i))
-            {i++; tkey = current.getKeyAt(i);}
+        while(i < current.getCurrentCapacity()-1 && key > current.getKeyAt(i)) {i++;}
 
-
-        //TODO fix stuff.
         // check if it's an internal node
         if(current.isInternalNode()) {
             // if it is, descend to a leaf
             TreeInternalNode inode = (TreeInternalNode)current;
-            int idx = i;//(key == tkey) ? (i+1) : i;
-            /*
-            if(i == current.getCurrentCapacity()-1)
-                {i--;}
-            else if(key == tkey) {
-                idx++;
-            }
-            */
-            if(/*i == current.getCurrentCapacity()-1 &&*/ key >= current.getKeyAt(i)) {
-                idx++;
-            }
-            //int keyLocation = i;
-
-            //if(i == current.getCurrentCapacity() && (key >= tempKey))
-            //    {idx++;}
-
-            long ptr = inode.getPointerAt(idx); //(key >= tempKey) ? (i+1) : i
-
-            //int keyLocation = i;//(key >= tempKey) ? (i+1) : i;
-
-
-
-            TreeNode next = readNode(ptr);
-
-            // select direction based on key value
-
-            // delete result
-            //DeleteResult delRes = deleteKey(next, inode /* parent */,
-            //        i, keyLocation, key, unique);
-
+            int idx = i;
+            // check if we are at the end
+            if(key >= current.getKeyAt(i)) {idx++;}
+            // read the next node
+            TreeNode next = readNode(inode.getPointerAt(idx));
             // finally return the resulting set
             return(deleteKey(next, inode, idx, i/*keyLocation*/, key, unique));
         }
         // the current node, is a leaf.
         else if(current.isLeaf()) {
             TreeLeaf l = (TreeLeaf)current;
-            //if(i == current.getCurrentCapacity()) {i--;}
             // check if we actually found the key
             if(i == l.getCurrentCapacity()) {
                 System.out.println("Key with value: " + key +
@@ -863,19 +833,9 @@ public class BPlusTree {
             throws InvalidBTreeStateException {
         if(with != null) {
             if(with.isInternalNode()) {
-                TreeInternalNode inode = (TreeInternalNode)with;
-                int num = (int)Math.ceil(conf.getTreeDegree()/4.0);
-                if(isValidAfterRemoval(inode, num))
-                    {return(num);}
-                else if(isValidAfterRemoval(inode, 1))
-                    {return(1);}
+                if(isValidAfterRemoval(((TreeInternalNode)with), 1)) {return(1);}
             } else if(with.isLeaf()) {
-                TreeLeaf lnode = (TreeLeaf)with;
-                int num = (int)Math.ceil(conf.getLeafNodeDegree()/4.0);
-                if(isValidAfterRemoval(lnode, num))
-                    {return(num);}
-                else if(isValidAfterRemoval(lnode, 1))
-                    {return(1);}
+                if(isValidAfterRemoval(((TreeLeaf)with), 1)) {return(1);}
             } else
                 {throw new InvalidBTreeStateException("Not leaf or internal node found");}
         }
@@ -939,38 +899,34 @@ public class BPlusTree {
      *
      * @param to node to receive (Key, Value) pairs
      * @param with node that we take the (Key, Value) pairs
-     * @param elements number of elements to remove
      * @param left if left is true, then we use prev leaf else next
      * @param parent the internal node parenting both
      * @param parentKeyIndex index of the parent that refers to this pair
      */
     private void redistributeNodes(TreeLeaf to, TreeLeaf with,
-                                   int elements, boolean left,
-                                   TreeInternalNode parent,
+                                   boolean left, TreeInternalNode parent,
                                    int parentKeyIndex)
             throws IOException, InvalidBTreeStateException {
         long key;
         // handle the case when redistributing using prev
         if(left) {
-            //for(int i = 0; i < elements; i++) {
             to.pushToOverflowList(with.removeLastOverflowPointer());
             to.pushToValueList(with.removeLastValue());
             to.pushToKeyArray(with.removeLastKey());
             to.incrementCapacity(conf);
             with.decrementCapacity(conf);
-            //}
+            // get the key from the left node
             key = to.getKeyAt(0);
 
         }
         // handle the case when redistributing using next
         else {
-            //for(int i = 0; i < elements; i++) {
             to.addLastToOverflowList(with.popOverflowPointer());
             to.addLastToValueList(with.popValue());
             to.addLastToKeyArray(with.popKey());
             to.incrementCapacity(conf);
             with.decrementCapacity(conf);
-            //}
+            // get the key from the right node
             key = with.getKeyAt(0);
         }
 
@@ -1017,65 +973,30 @@ public class BPlusTree {
      *
      * @param to node to receive (Key, Value) pairs
      * @param with node that we take the (Key, Value) pairs
-     * @param elements number of elements to remove
      * @param left if left is true, then we use prev leaf else next
      * @param parent the internal node parenting both
      * @param parentKeyIndex index of the parent that refers to this pair
      */
     private void redistributeNodes(TreeInternalNode to, TreeInternalNode with,
-                                   int elements, boolean left,
-                                   TreeInternalNode parent,
+                                   boolean left, TreeInternalNode parent,
                                    int parentKeyIndex)
             throws IOException, InvalidBTreeStateException {
         long key, pkey = parent.getKeyAt(parentKeyIndex);
-        /*
-        TreeNode n;
-
-        TreeNode toPreLast = readNode(to.getPointerAt(to.getPointerListSize()-2)),
-                 toLast = readNode(to.getPointerAt(to.getPointerListSize()-1)),
-                 withFirst = readNode(with.getPointerAt(0)),
-                 withSecond = readNode(with.getPointerAt(1));
-        */
         if(left) {
-            //for(int i = 0; i < elements; i++) {
             to.pushToKeyArray(pkey);
             key = with.removeLastKey();
             to.pushToPointerArray(with.removeLastPointer());
             to.incrementCapacity(conf);
             with.decrementCapacity(conf);
-            //}
-            //n = to;
-            //while(!n.isLeaf()) {n = readNode(((TreeInternalNode)n).getPointerAt(0));}
-            //key = n.getFirstKey();
-            //key = (to.getFirstKey() + with.getLastKey())/2;
-            //key = to.getKeyAt(0);
         }
         // handle the case when redistributing using next
         else {
             to.addLastToKeyArray(pkey);
-            //for(int i = 0; i < elements; i++) {
-            //to.addLastToKeyArray(with.popKey());
             key = with.popKey();
             to.addPointerLast(with.popPointer());
             to.incrementCapacity(conf);
             with.decrementCapacity(conf);
-            //}
-
-            //n = with;
-            //while(!n.isLeaf()) {n = readNode(((TreeInternalNode)n).getPointerAt(0));}
-            //key = n.getFirstKey();
-            //key = (with.getFirstKey() + to.getLastKey())/2;
-            //key = with.getKeyAt(0);
-            //key = to.getLastKey();
         }
-
-        /*
-        TreeNode nn = readNode(parent.getPointerAt(7)),
-                nn1 = readNode(parent.getPointerAt(8)),
-                w1 = readNode(to.getPointerAt(to.getPointerListSize()-1)),
-                w2 = readNode(with.getPointerAt(0)),
-                w3 = readNode(with.getPointerAt(1));
-        */
         // in either case update the parent key
         parent.setKeyArrayAt(parentKeyIndex, key);
         // finally write the chances
@@ -1084,28 +1005,6 @@ public class BPlusTree {
         parent.writeNode(treeFile, conf, bPerf);
     }
 
-    /*
-    private void mergeNodes(TreeNode left, TreeNode right,
-                            TreeNode parent, int pindex, boolean usingNext)
-            throws InvalidBTreeStateException, IOException {
-        // try to merge two leaves
-        if(left.isLeaf() && right.isLeaf()) {mergeNodes(left,
-                right, parent,
-                pindex, usingNext);
-        }
-        // try to merge two internal nodes
-        else if(left.isInternalNode() && right.isInternalNode()) {
-            mergeNodes(left,
-                    right, parent,
-                    pindex, usingNext);
-        }
-        // throw an exception for the faint of heart
-        else {
-            throw new InvalidBTreeStateException("We cannot merge different " +
-                    "nodes types together");
-        }
-    }
-    */
 
     /**
      * Function that merges two leaves together; in this case we *must*
@@ -1153,12 +1052,7 @@ public class BPlusTree {
             throw new InvalidBTreeStateException("Leaf node capacity exceeded in merge");
         }
 
-        // check if the left node is the left node of this key
-        // or the next one
-        //boolean isLeftOfNext = left.getFirstKey() >= parent.getKeyAt(parentKeyIndex);
-        // check if we are using the next pointer of the previous
-        //boolean useNextPointer = parentKeyIndex < parentPointerIndex;
-
+        // flag the node for deletion
         right.setBeingDeleted(true);
         // join the two leaves together.
         int cap = right.getCurrentCapacity();
@@ -1169,19 +1063,13 @@ public class BPlusTree {
             left.incrementCapacity(conf);
             right.decrementCapacity(conf);
         }
-        // now fix the top pointer
-        //updateParentPointerAfterMerge(left, parent,
-        //        parentPointerIndex, parentKeyIndex);
 
-        // update the pointers
+        // update the next pointers
         left.setNextPagePointer(right.getNextPagePointer());
-
+        // now fix the top pointer
         updateParentPointerAfterMerge(parent,
                 useNextPointer ? (parentPointerIndex + 1) : parentPointerIndex,
                 (isLeftOfNext && useNextPointer) ? (parentKeyIndex+1) : parentKeyIndex);
-
-        //TreeNode n1 = readNode(parent.getPointerAt(2)),
-        //         n2 = readNode(parent.getPointerAt(3));
 
         // update the prev pointer of right next node (if any)
         if(right.getNextPagePointer() != -1) {
@@ -1190,6 +1078,7 @@ public class BPlusTree {
             rnext.writeNode(treeFile, conf, bPerf);
         }
 
+        // write the left node to disk
         left.writeNode(treeFile, conf, bPerf);
         // remove the page
         deletePage(right.getPageIndex(), false);
@@ -1247,24 +1136,19 @@ public class BPlusTree {
                                 boolean useNextPointer)
             throws IOException, InvalidBTreeStateException {
 
-        //TODO fix this one as well.
+        // check if we can actually merge
         if((left.getCurrentCapacity() + right.getCurrentCapacity()) >
                 conf.getMaxInternalNodeCapacity()) {
             throw new InvalidBTreeStateException("Internal node capacity exceeded in merge");
         }
 
-        // check if the left node is the left node of this key
-        // or the next one
-        //boolean isLeftOfNext = left.getFirstKey() >= parent.getKeyAt(parentKeyIndex);
-        // check if we are using the next pointer of the previous
-        //boolean useNextPointer = parentKeyIndex < parentPointerIndex;
-
-
+        // check if we are using a trickery
         if(isLeftOfNext && useNextPointer)
             {left.addLastToKeyArray(parent.getKeyAt(parentKeyIndex+1));}
         else
             {left.addLastToKeyArray(parent.getKeyAt(parentKeyIndex));}
 
+        // flag the node for deletion
         right.setBeingDeleted(true);
 
         int cap = right.getCurrentCapacity();
@@ -1338,7 +1222,19 @@ public class BPlusTree {
         parent.writeNode(treeFile, conf, bPerf);
     }
 
-    //TODO delete the pindex and find it inside it.
+    /**
+     *
+     * This function handles the merging or redistribution of the nodes depending
+     * on their capacity; usually we just redistribute, if not we merge.
+     *
+     * @param mnode current node (either leaf or internal node)
+     * @param parent parent node *always* an internal node
+     * @param parentPointerIndex pointer index to mnode in parent
+     * @param parentKeyIndex key index that has mnode as a child in parent
+     * @return the updated mnode
+     * @throws IOException
+     * @throws InvalidBTreeStateException
+     */
     public TreeNode mergeOrRedistributeTreeNodes(TreeNode mnode, TreeInternalNode parent,
                                              int parentPointerIndex, int parentKeyIndex)
             throws IOException, InvalidBTreeStateException {
@@ -1347,323 +1243,346 @@ public class BPlusTree {
         if(parent != null && parentPointerIndex < 0)
             {throw new IllegalStateException("index < 0");}
 
-        //TODO test it!
         // this is the only case that the tree shrinks, from the root.
         if(parent == null) {
-            if(mnode.isInternalNode()) {
-                System.out.println("\n -- Check if Consolidating Root required");
-
-                if(mnode.getCurrentCapacity() > 1)
-                    {System.out.println("\n -- Root size > 2, no consolidation"); return root;}
-
-                TreeInternalNode splitNode = (TreeInternalNode)mnode;
-                // read up their pointers
-                TreeNode lChild, rChild;
-
-                // load the pointers
-                lChild = readNode(splitNode.getPointerAt(0));
-                rChild = readNode(splitNode.getPointerAt(1));
-
-                if(lChild == null || rChild == null)
-                    {throw new InvalidBTreeStateException("Null root child found.");}
-
-                int lcap = lChild.getCurrentCapacity();
-                int rcap = rChild.getCurrentCapacity();
-
-                // check their type
-                if(lChild.isLeaf()) {
-
-                    // check if it's time to merge
-                    if((lcap > conf.getMinLeafNodeCapacity()) &&
-                            (rcap > conf.getMinLeafNodeCapacity()))
-                        {System.out.println(" -- No need to consolidate root yet (to -> leaf)"); return mnode;}
-
-                    TreeInternalNode rNode = (TreeInternalNode)mnode;
-                    TreeLeaf pLeaf = (TreeLeaf)lChild,
-                             nLeaf = (TreeLeaf)rChild;
-
-                    // now merge them, and delete root page, while
-                    // updating it's page number etc
-
-                    int nnum = canRedistribute(nLeaf);
-                    int pnum = canRedistribute(pLeaf);
-
-                    if(nnum > 0) {
-                        redistributeNodes(pLeaf, nLeaf, nnum, false, rNode, 0);
-                    }
-                    // now check if we can redistribute with prev
-                    else if(pnum > 0) {
-                        redistributeNodes(nLeaf, pLeaf, pnum, true, rNode, 0);
-                    }
-                    // merge the two nodes and promote them to root
-                    else {
-                        mergeNodes(pLeaf, nLeaf);
-                        // update root page
-                        pLeaf.setNodeType(TreeNodeType.TREE_ROOT_LEAF);
-                        // update the leaf pointers
-                        pLeaf.setNextPagePointer(-1L);
-                        pLeaf.setPrevPagePointer(-1L);
-                        // delete previous root page
-                        deletePage(root.getPageIndex(), false);
-                        // set root page
-                        root = lChild;
-                        // write root header
-                        writeFileHeader(conf);
-                        // write left leaf
-                        lChild.writeNode(treeFile, conf, bPerf);
-                        // since we have a new root
-                        return(lChild);
-                    }
-
-                } else if(lChild.isInternalNode()) {
-
-
-                    if((lcap+rcap) >= conf.getMaxInternalNodeCapacity())
-                    // check if it's time to merge
-                    //if((lcap > conf.getMinInternalNodeCapacity()) &&
-                    //        (rcap > conf.getMinInternalNodeCapacity()))
-                    {System.out.println(" -- No need to consolidate root yet (to -> internal)"); return mnode;}
-                    else {
-                        System.out.println("-- Consolidating Root (internal -> internal)");
-                    }
-                    //TODO fix it (handle merging of the pointers better).
-
-                    TreeInternalNode rNode = (TreeInternalNode)mnode,
-                                     lIntNode = (TreeInternalNode)lChild,
-                                     rIntNode = (TreeInternalNode)rChild;
-
-                    int nnum = canRedistribute(rIntNode);
-                    int pnum = canRedistribute(lIntNode);
-
-
-                    if(nnum > 0) {
-                        redistributeNodes(lIntNode, rIntNode, nnum, true, rNode, 0);
-                    }
-                    // now check if we can redistribute with prev
-                    else if(pnum > 0) {
-                        System.out.println("\t -- Redistributing right with elements from left");
-                        redistributeNodes(rIntNode, lIntNode, pnum, false, rNode, 0);
-                    }
-                    // merge the two nodes and promote them to root
-                    else {
-                        System.out.println("\t -- Merging leaf nodes");
-                        mergeNodes(lIntNode, rIntNode, splitNode.getFirstKey());
-                        // update root page
-                        lIntNode.setNodeType(TreeNodeType.TREE_ROOT_INTERNAL);
-                        // delete previous root page
-                        deletePage(root.getPageIndex(), false);
-                        // set root page
-                        root = lChild;
-                        // write root header
-                        writeFileHeader(conf);
-
-                        TreeNode n = readNode(((TreeInternalNode) lChild).getPointerAt(9));
-
-                        // write left leaf
-                        lChild.writeNode(treeFile, conf, bPerf);
-                        // since we have a new root
-                        return(lChild);
-                    }
-
-                    //throw new InvalidBTreeStateException("Should not be here!");
-                    // update root page
-                    //lIntNode.setNodeType(TreeNodeType.TREE_ROOT_INTERNAL);
-
-
-                } else {
-                    throw new InvalidBTreeStateException("Unknown children type");
-                }
-
-                return(root);
-
-            } else if(!mnode.isLeaf()) {
-                throw new InvalidBTreeStateException("Invalid tree Root type.");
-            }
+            TreeNode lChild = handleRootRedistributionOrMerging(mnode);
+            if (lChild != null) return lChild;
         }
         // merging a leaf requires the most amount of work, since
         // all leaves by definition are linked in a doubly-linked
         // linked-list; hence when we merge/remove a node we have
         // to make sure those links are consistent
         else if(mnode.isLeaf()) {
-            TreeLeaf splitNode = (TreeLeaf)mnode;
-            TreeLeaf nptr, pptr;
-
-            // load the pointers
-            nptr = (TreeLeaf)readNode(splitNode.getNextPagePointer());
-            pptr = (TreeLeaf)readNode(splitNode.getPrevPagePointer());
-
-            if(nptr == null && pptr == null) {
-                throw new InvalidBTreeStateException("Both children (leaves) can't null");
-            } else {
-                System.out.println("Leaf node merging/redistribution needs to happen");
-            }
-
-            int nnum = canRedistribute(nptr);
-            int pnum = canRedistribute(pptr);
-            int snum = canRedistribute(splitNode);
-            boolean isLeftOfNext = (parentPointerIndex > parentKeyIndex);
-            boolean useNextPointer = false;
-            boolean splitNodeIsLeftChild = parentKeyIndex == parentPointerIndex;
-
-            boolean npar = isParent(nptr, parent, parentPointerIndex+1);
-            boolean ppar = isParent(pptr, parent, parentPointerIndex-1);
-
-            // check if we can redistribute with next
-            if(nnum > 0 && npar) {
-                System.out.println("\t -- Redistributing split node with elements from next");
-                if(splitNodeIsLeftChild) {
-                    redistributeNodes(splitNode, nptr, nnum, false, parent, parentKeyIndex);
-                } else {
-                    redistributeNodes(splitNode, nptr, nnum, false, parent, parentKeyIndex+1);
-                }
-            }
-            // now check if we can redistribute with prev
-            else if(pnum > 0 && ppar) {
-                System.out.println("\t -- Redistributing split node with elements from prev");
-                if(splitNodeIsLeftChild) {
-                    redistributeNodes(splitNode, pptr, pnum, true, parent, parentKeyIndex-1);
-                } else {
-                    redistributeNodes(splitNode, pptr, pnum, true, parent, parentKeyIndex);
-                }
-            } else if(snum > 0) {
-                if(nptr != null) {
-                    System.out.println("\t -- Redistributing next node with elements from split");
-                    if(splitNodeIsLeftChild) {
-                        redistributeNodes(nptr, splitNode, snum, true, parent, parentKeyIndex);
-                    } else {
-                        redistributeNodes(nptr, splitNode, snum, true, parent, parentKeyIndex+1);
-                    }
-                } else {
-                    System.out.println("\t -- Redistributing prev with elements from split");
-                    if(splitNodeIsLeftChild) {
-                        redistributeNodes(pptr, splitNode, snum, false, parent, parentKeyIndex-1);
-                    } else {
-                        redistributeNodes(pptr, splitNode, snum, false, parent, parentKeyIndex);
-                    }
-                }
-            }
-            // we can't redistribute, try merging with next
-            else if(npar) {
-                System.out.println("Merging leaf next");
-
-                // it's the case where split node is the left node from parent
-                useNextPointer = true;
-                mnode = mergeNodes(splitNode, nptr, parent,
-                        parentPointerIndex, parentKeyIndex,
-                        isLeftOfNext, useNextPointer);
-            }
-            // last chance, try merging with prev
-            else if(ppar) {
-                System.out.println("Merging leaf prev");
-
-                // it's the case where split node is in the left from parent
-                useNextPointer = false;
-
-                mnode = mergeNodes(pptr, splitNode, parent,
-                        parentPointerIndex, parentKeyIndex,
-                        isLeftOfNext, useNextPointer);
-            } else
-                {throw new IllegalStateException("Can't have both leaf " +
-                        "pointers null and not be root or no " +
-                        "common parent");}
-
-            //TODO
-            return(mnode);
+            return handleLeafNodeRedistributionOrMerging(mnode, parent, parentPointerIndex, parentKeyIndex);
         }
 
         // we have to merge internal nodes, this is the somewhat easy
         // case, since we do not have to update any more links than the
         // currently pulled nodes.
         else if(mnode.isInternalNode()) {
-
-            //TODO fix it (handle merging of the pointers better).
-            System.out.println("Internal node merging/redistribution needs to happen");
-
-            TreeInternalNode splitNode = (TreeInternalNode)mnode;
-            TreeInternalNode nptr, pptr;
-
-            //TODO use correnct indexes
-            // load the adjacent nodes
-            nptr = (TreeInternalNode)readNode(parent.getPointerAt(parentPointerIndex+1));
-            pptr = (TreeInternalNode)readNode(parent.getPointerAt(parentPointerIndex-1));
-
-            if(nptr == null && pptr == null) {
-                throw new InvalidBTreeStateException("Can't have both children null");
-            }
-
-            int nnum = canRedistribute(nptr);
-            int pnum = canRedistribute(pptr);
-            int snum = canRedistribute(splitNode);
-            boolean isLeftOfNext = (parentPointerIndex > parentKeyIndex);
-            boolean useNextPointer = false;
-            boolean splitNodeIsLeftChild = parentKeyIndex == parentPointerIndex;
-
-            // check if we can redistribute with the next node
-            if(nnum > 0) {
-                System.out.println(" -- Internal Redistribution to split with next");
-                if(splitNodeIsLeftChild) {
-                    redistributeNodes(splitNode, nptr, nnum, false, parent, parentKeyIndex);
-                } else {
-                    redistributeNodes(splitNode, nptr, nnum, false, parent, parentKeyIndex+1);
-                }
-            }
-            // check if we can redistribute with the previous node
-            else if(pnum > 0) {
-                System.out.println(" -- Internal Redistribution to split with prev");
-                if(splitNodeIsLeftChild) {
-                    redistributeNodes(splitNode, pptr, pnum, true, parent, parentKeyIndex-1);
-                } else {
-                    redistributeNodes(splitNode, pptr, pnum, true, parent, parentKeyIndex);
-                }
-            }
-            else if(snum > 0) {
-                // check try to send items from next
-                if(nptr != null) {
-                    System.out.println(" -- Internal Redistribution to next with split");
-                    if(splitNodeIsLeftChild) {
-                        redistributeNodes(nptr, splitNode, snum, true, parent, parentKeyIndex);
-                    } else {
-                        redistributeNodes(nptr, splitNode, snum, true, parent, parentKeyIndex+1);
-                    }
-                }
-                // if not, try to send items from prev
-                else {
-                    System.out.println(" -- Internal Redistribution to prev with split");
-                    if(splitNodeIsLeftChild) {
-                        redistributeNodes(pptr, splitNode, snum, false, parent, parentKeyIndex-1);
-                    } else {
-                        redistributeNodes(pptr, splitNode, snum, false, parent, parentKeyIndex);
-                    }
-                }
-            }
-            // can't redistribute; merging needs to happen, check which has t-1 elements
-            else {
-                System.out.println(" -- Internal merging actually happens");
-                // check if we can merge with the right node
-                if(nptr != null && nptr.isTimeToMerge(conf)) {
-                    useNextPointer = true;
-                    mnode = mergeNodes(splitNode, nptr, parent,
-                            parentPointerIndex, parentKeyIndex,
-                            isLeftOfNext, useNextPointer);
-                }
-                // now, check if we can merge with the left node
-                else if(pptr != null && pptr.isTimeToMerge(conf)) {
-                    useNextPointer = false;
-                    mnode = mergeNodes(pptr, splitNode, parent,
-                            parentPointerIndex, parentKeyIndex,
-                            isLeftOfNext, useNextPointer);
-                } else {
-                    throw new InvalidBTreeStateException("Can't merge or " +
-                            "redistribute, corrupted file?");
-                }
-            }
-
-            return(mnode);
+            return handleInternalNodeRedistributionOrMerging(mnode, parent, parentPointerIndex, parentKeyIndex);
         } else
             {throw new IllegalStateException("Read unknown or overflow page while merging");}
 
         // probably we didn't change something
         return null;
+    }
+
+    /**
+     * Handle the root node cases (leaf and internal node)
+     *
+     * @param mnode root node
+     * @return the root node
+     * @throws IOException
+     * @throws InvalidBTreeStateException
+     */
+    private TreeNode handleRootRedistributionOrMerging(TreeNode mnode)
+            throws IOException, InvalidBTreeStateException {
+        if(mnode.isInternalNode()) {
+            System.out.println("\n -- Check if Consolidating Root required");
+
+            if(mnode.getCurrentCapacity() > 1)
+                {System.out.println("\n -- Root size > 2, no consolidation"); return root;}
+
+            TreeInternalNode splitNode = (TreeInternalNode)mnode;
+            // read up their pointers
+            TreeNode lChild, rChild;
+
+            // load the pointers
+            lChild = readNode(splitNode.getPointerAt(0));
+            rChild = readNode(splitNode.getPointerAt(1));
+
+            if(lChild == null || rChild == null)
+                {throw new InvalidBTreeStateException("Null root child found.");}
+
+            int lcap = lChild.getCurrentCapacity();
+            int rcap = rChild.getCurrentCapacity();
+
+            // check their type
+            if(lChild.isLeaf()) {
+
+                // check if it's time to merge
+                if((lcap > conf.getMinLeafNodeCapacity()) &&
+                        (rcap > conf.getMinLeafNodeCapacity()))
+                    {System.out.println(" -- No need to consolidate root yet (to -> leaf)"); return mnode;}
+
+                TreeInternalNode rNode = (TreeInternalNode)mnode;
+                TreeLeaf pLeaf = (TreeLeaf)lChild,
+                         nLeaf = (TreeLeaf)rChild;
+
+                // now merge them, and delete root page, while
+                // updating it's page number etc
+
+                int nnum = canRedistribute(nLeaf);
+                int pnum = canRedistribute(pLeaf);
+
+                if(nnum > 0) {
+                    redistributeNodes(pLeaf, nLeaf, false, rNode, 0);
+                }
+                // now check if we can redistribute with prev
+                else if(pnum > 0) {
+                    redistributeNodes(nLeaf, pLeaf, true, rNode, 0);
+                }
+                // merge the two nodes and promote them to root
+                else {
+                    mergeNodes(pLeaf, nLeaf);
+                    // update root page
+                    pLeaf.setNodeType(TreeNodeType.TREE_ROOT_LEAF);
+                    // update the leaf pointers
+                    pLeaf.setNextPagePointer(-1L);
+                    pLeaf.setPrevPagePointer(-1L);
+                    // delete previous root page
+                    deletePage(root.getPageIndex(), false);
+                    // set root page
+                    root = lChild;
+                    // write root header
+                    writeFileHeader(conf);
+                    // write left leaf
+                    lChild.writeNode(treeFile, conf, bPerf);
+                    // since we have a new root
+                    return(lChild);
+                }
+
+            } else if(lChild.isInternalNode()) {
+                // check if it's time to merge
+                if((lcap+rcap) >= conf.getMaxInternalNodeCapacity())
+                {System.out.println(" -- No need to consolidate root yet (to -> internal)"); return mnode;}
+                else {
+                    System.out.println("-- Consolidating Root (internal -> internal)");
+                }
+
+                TreeInternalNode rNode = (TreeInternalNode)mnode,
+                                 lIntNode = (TreeInternalNode)lChild,
+                                 rIntNode = (TreeInternalNode)rChild;
+
+                int nnum = canRedistribute(rIntNode);
+                int pnum = canRedistribute(lIntNode);
+
+
+                if(nnum > 0) {
+                    redistributeNodes(lIntNode, rIntNode, true, rNode, 0);
+                }
+                // now check if we can redistribute with prev
+                else if(pnum > 0) {
+                    System.out.println("\t -- Redistributing right with elements from left");
+                    redistributeNodes(rIntNode, lIntNode, false, rNode, 0);
+                }
+                // merge the two nodes and promote them to root
+                else {
+                    System.out.println("\t -- Merging leaf nodes");
+                    mergeNodes(lIntNode, rIntNode, splitNode.getFirstKey());
+                    // update root page
+                    lIntNode.setNodeType(TreeNodeType.TREE_ROOT_INTERNAL);
+                    // delete previous root page
+                    deletePage(root.getPageIndex(), false);
+                    // set root page
+                    root = lChild;
+                    // write root header
+                    writeFileHeader(conf);
+                    // write left leaf
+                    lChild.writeNode(treeFile, conf, bPerf);
+                    // since we have a new root
+                    return(lChild);
+                }
+            } else
+                {throw new InvalidBTreeStateException("Unknown children type");}
+
+            return(root);
+
+        } else if(!mnode.isLeaf())
+            {throw new InvalidBTreeStateException("Invalid tree Root type.");}
+        return null;
+    }
+
+    /**
+     * Handle the leaf section of the redistribution/merging
+     *
+     * @param mnode node to process
+     * @param parent the parent node
+     * @param parentPointerIndex parent pointer index
+     * @param parentKeyIndex parent key index that mnode is child
+     * @return the updated node (if any updates are made)
+     * @throws IOException
+     * @throws InvalidBTreeStateException
+     */
+    private TreeNode handleLeafNodeRedistributionOrMerging(TreeNode mnode,
+                                                           TreeInternalNode parent,
+                                                           int parentPointerIndex,
+                                                           int parentKeyIndex)
+            throws IOException, InvalidBTreeStateException {
+        TreeLeaf splitNode = (TreeLeaf)mnode;
+        TreeLeaf nptr, pptr;
+
+        // load the pointers
+        nptr = (TreeLeaf)readNode(splitNode.getNextPagePointer());
+        pptr = (TreeLeaf)readNode(splitNode.getPrevPagePointer());
+
+        if(nptr == null && pptr == null) {
+            throw new InvalidBTreeStateException("Both children (leaves) can't null");
+        } else {
+            System.out.println("Leaf node merging/redistribution needs to happen");
+        }
+
+        int nnum = canRedistribute(nptr);
+        int pnum = canRedistribute(pptr);
+        int snum = canRedistribute(splitNode);
+        boolean isLeftOfNext = (parentPointerIndex > parentKeyIndex);
+        boolean splitNodeIsLeftChild = parentKeyIndex == parentPointerIndex;
+
+        boolean npar = isParent(nptr, parent, parentPointerIndex+1);
+        boolean ppar = isParent(pptr, parent, parentPointerIndex-1);
+
+        // check if we can redistribute with next
+        if(nnum > 0 && npar) {
+            System.out.println("\t -- Redistributing split node with elements from next");
+            if(splitNodeIsLeftChild) {
+                redistributeNodes(splitNode, nptr, false, parent, parentKeyIndex);
+            } else {
+                redistributeNodes(splitNode, nptr, false, parent, parentKeyIndex+1);
+            }
+        }
+        // now check if we can redistribute with prev
+        else if(pnum > 0 && ppar) {
+            System.out.println("\t -- Redistributing split node with elements from prev");
+            if(splitNodeIsLeftChild) {
+                redistributeNodes(splitNode, pptr, true, parent, parentKeyIndex-1);
+            } else {
+                redistributeNodes(splitNode, pptr, true, parent, parentKeyIndex);
+            }
+        } else if(snum > 0) {
+            if(nptr != null) {
+                System.out.println("\t -- Redistributing next node with elements from split");
+                if(splitNodeIsLeftChild) {
+                    redistributeNodes(nptr, splitNode, true, parent, parentKeyIndex);
+                } else {
+                    redistributeNodes(nptr, splitNode, true, parent, parentKeyIndex+1);
+                }
+            } else {
+                System.out.println("\t -- Redistributing prev with elements from split");
+                if(splitNodeIsLeftChild) {
+                    redistributeNodes(pptr, splitNode, false, parent, parentKeyIndex-1);
+                } else {
+                    redistributeNodes(pptr, splitNode, false, parent, parentKeyIndex);
+                }
+            }
+        }
+        // we can't redistribute, try merging with next
+        else if(npar) {
+            System.out.println("Merging leaf next");
+            // it's the case where split node is the left node from parent
+            mnode = mergeNodes(splitNode, nptr, parent,
+                    parentPointerIndex, parentKeyIndex,
+                    isLeftOfNext, /*useNextPointer = */ true);
+        }
+        // last chance, try merging with prev
+        else if(ppar) {
+            System.out.println("Merging leaf prev");
+            // it's the case where split node is in the left from parent
+            mnode = mergeNodes(pptr, splitNode, parent,
+                    parentPointerIndex, parentKeyIndex,
+                    isLeftOfNext, /*useNextPointer = */ false);
+        } else
+            {throw new IllegalStateException("Can't have both leaf " +
+                    "pointers null and not be root or no " +
+                    "common parent");}
+
+        return(mnode);
+    }
+
+    /**
+     * Handle the internal node redistribution/merging
+     *
+     * @param mnode node to process
+     * @param parent the parent node
+     * @param parentPointerIndex parent pointer index
+     * @param parentKeyIndex parent key index that mnode is child
+     * @return the updated node (if any updates are made)
+     * @throws IOException
+     * @throws InvalidBTreeStateException
+     */
+    private TreeNode handleInternalNodeRedistributionOrMerging(TreeNode mnode,
+                                                               TreeInternalNode parent,
+                                                               int parentPointerIndex,
+                                                               int parentKeyIndex)
+            throws IOException, InvalidBTreeStateException {
+        System.out.println("Internal node merging/redistribution needs to happen");
+
+        TreeInternalNode splitNode = (TreeInternalNode)mnode;
+        TreeInternalNode nptr, pptr;
+
+        // load the adjacent nodes
+        nptr = (TreeInternalNode)readNode(parent.getPointerAt(parentPointerIndex+1));
+        pptr = (TreeInternalNode)readNode(parent.getPointerAt(parentPointerIndex-1));
+
+        if(nptr == null && pptr == null) {
+            throw new InvalidBTreeStateException("Can't have both children null");
+        }
+
+        int nnum = canRedistribute(nptr);
+        int pnum = canRedistribute(pptr);
+        int snum = canRedistribute(splitNode);
+        boolean isLeftOfNext = (parentPointerIndex > parentKeyIndex);
+        boolean splitNodeIsLeftChild = parentKeyIndex == parentPointerIndex;
+
+        // check if we can redistribute with the next node
+        if(nnum > 0) {
+            System.out.println(" -- Internal Redistribution to split with next");
+            if(splitNodeIsLeftChild) {
+                redistributeNodes(splitNode, nptr, false, parent, parentKeyIndex);
+            } else {
+                redistributeNodes(splitNode, nptr, false, parent, parentKeyIndex+1);
+            }
+        }
+        // check if we can redistribute with the previous node
+        else if(pnum > 0) {
+            System.out.println(" -- Internal Redistribution to split with prev");
+            if(splitNodeIsLeftChild) {
+                redistributeNodes(splitNode, pptr, true, parent, parentKeyIndex-1);
+            } else {
+                redistributeNodes(splitNode, pptr, true, parent, parentKeyIndex);
+            }
+        }
+        else if(snum > 0) {
+            // check try to send items from next
+            if(nptr != null) {
+                System.out.println(" -- Internal Redistribution to next with split");
+                if(splitNodeIsLeftChild) {
+                    redistributeNodes(nptr, splitNode, true, parent, parentKeyIndex);
+                } else {
+                    redistributeNodes(nptr, splitNode, true, parent, parentKeyIndex+1);
+                }
+            }
+            // if not, try to send items from prev
+            else {
+                System.out.println(" -- Internal Redistribution to prev with split");
+                if(splitNodeIsLeftChild) {
+                    redistributeNodes(pptr, splitNode, false, parent, parentKeyIndex-1);
+                } else {
+                    redistributeNodes(pptr, splitNode, false, parent, parentKeyIndex);
+                }
+            }
+        }
+        // can't redistribute; merging needs to happen, check which has t-1 elements
+        else {
+            System.out.println(" -- Internal merging actually happens");
+            // check if we can merge with the right node
+            if(nptr != null && nptr.isTimeToMerge(conf)) {
+                mnode = mergeNodes(splitNode, nptr, parent,
+                        parentPointerIndex, parentKeyIndex,
+                        isLeftOfNext, /*useNextPointer = */ true);
+            }
+            // now, check if we can merge with the left node
+            else if(pptr != null && pptr.isTimeToMerge(conf)) {
+                mnode = mergeNodes(pptr, splitNode, parent,
+                        parentPointerIndex, parentKeyIndex,
+                        isLeftOfNext, /*useNextPointer = */ false);
+            } else {
+                throw new InvalidBTreeStateException("Can't merge or " +
+                        "redistribute, corrupted file?");
+            }
+        }
+
+        return(mnode);
     }
 
     /**
@@ -2075,6 +1994,7 @@ public class BPlusTree {
     public void printCurrentConfiguration()
         {conf.printConfiguration();}
 
+    @SuppressWarnings("unused")
     public void printTree() throws IOException {
         root.printNode();
 
