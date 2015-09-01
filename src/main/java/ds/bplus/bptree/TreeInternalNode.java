@@ -1,5 +1,7 @@
 package ds.bplus.bptree;
 
+import ds.bplus.util.InvalidBTreeStateException;
+
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.LinkedList;
@@ -74,7 +76,7 @@ public class TreeInternalNode extends TreeNode {
     @Override
     public void writeNode(RandomAccessFile r, BPlusConfiguration conf,
                           BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
 
         // update root index in the file
         if(this.isRoot()) {

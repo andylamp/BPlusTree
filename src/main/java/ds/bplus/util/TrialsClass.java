@@ -26,7 +26,7 @@ public class TrialsClass {
     public static void runSearchTrial(int trials, int rmin, int rmax, boolean unique,
                                       BPlusTreePerformanceCounter bPerf,
                                       boolean verbose)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
 
         int pageReads = 0;
         int pageWrites = 0;
@@ -95,7 +95,7 @@ public class TrialsClass {
      */
     public static void runRangeQueryTrial(int trials, int rmin, int rmax, int range,
                                           boolean unique, BPlusTreePerformanceCounter bPerf,
-                                          boolean verbose) throws IOException {
+                                          boolean verbose) throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;
         int stats[];

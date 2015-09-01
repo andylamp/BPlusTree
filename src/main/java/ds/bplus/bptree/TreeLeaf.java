@@ -1,5 +1,7 @@
 package ds.bplus.bptree;
 
+import ds.bplus.util.InvalidBTreeStateException;
+
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
@@ -84,11 +86,12 @@ public class TreeLeaf extends TreeNode {
     public long getPrevPagePointer()
         {return prevPagePointer;}
 
-    public String removeEntryAt(int index) {
+    public String removeEntryAt(int index, BPlusConfiguration conf)
+            throws InvalidBTreeStateException {
         keyArray.remove(index);
         overflowList.remove(index);
         String s = valueList.remove(index);
-        decrementCapacity();
+        decrementCapacity(conf);
         return(s);
     }
 
@@ -111,7 +114,7 @@ public class TreeLeaf extends TreeNode {
     @Override
     public void writeNode(RandomAccessFile r, BPlusConfiguration conf,
                           BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
 
         // update root index in the file
         if(this.isRoot()) {

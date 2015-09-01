@@ -21,9 +21,14 @@ public class DeleteResult {
      */
     public DeleteResult(long key, String value) {
         this.key = key;
-        values = new LinkedList<>();
-        values.add(value);
-        this.found = true;
+        if(value != null) {
+            values = new LinkedList<>();
+            values.add(value);
+            this.found = true;
+        } else {
+            this.values = null;
+            this.found = false;
+        }
     }
 
     /**

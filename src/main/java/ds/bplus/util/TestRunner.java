@@ -180,7 +180,7 @@ public class TestRunner {
      */
     public static void runSearch(StandardInputRead sin,
                                  BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         String val = "1234567890";  // default value
         int key = -1;
@@ -200,7 +200,7 @@ public class TestRunner {
      */
     public static void runRangeQuery(StandardInputRead sin,
                                      BPlusTreePerformanceCounter bPerf)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         String val = "1234567890";  // default value
         int minKey;

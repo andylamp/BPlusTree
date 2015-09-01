@@ -253,9 +253,14 @@ public class BPlusTreePerformanceCounter {
     public int[] deleteIO(long key, boolean unique, boolean verbose)
             throws IOException, InvalidBTreeStateException {
         startPageTracking();
-        bt.deleteKey(key, unique);
+        DeleteResult r = bt.deleteKey(key, unique);
         //bt.searchKey(key, unique);
         if(verbose) {
+            System.out.println("Key " + key +
+                    (r.isFound() ? " has been found" : " was not found"));
+            if(r.isFound()) {
+                System.out.println("Number of results returned: " + r.getValues().size());
+            }
             System.out.println("Total page reads for this deletion: " + getPageReads());
             System.out.println("Total page writes for this deletion: " + getPageWrites());
             System.out.println("\nBroken down statistics: ");
@@ -286,7 +291,7 @@ public class BPlusTreePerformanceCounter {
     }
 
     public int[] searchIO(long key, boolean unique, boolean verbose)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         startPageTracking();
         SearchResult r = bt.searchKey(key, unique);
         if(verbose) {
@@ -326,7 +331,7 @@ public class BPlusTreePerformanceCounter {
     }
 
     public int[] rangeIO(long minKey, long maxKey,
-                       boolean unique, boolean verbose) throws IOException {
+                       boolean unique, boolean verbose) throws IOException, InvalidBTreeStateException {
         startPageTracking();
         RangeResult rangeQRes =  bt.rangeSearch(minKey, maxKey, unique);
         if(verbose) {

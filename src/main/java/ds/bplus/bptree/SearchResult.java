@@ -1,5 +1,7 @@
 package ds.bplus.bptree;
 
+import ds.bplus.util.InvalidBTreeStateException;
+
 import java.util.LinkedList;
 
 /**
@@ -63,8 +65,7 @@ public class SearchResult {
     public LinkedList<String> getValues()
         {return(ovfValues);}
 
-    public long getKey()
-        {return(leafLoc.getKeyAt(index));}
+    public long getKey() throws InvalidBTreeStateException {return(leafLoc.getKeyAt(index));}
 
     public boolean isFound()
         {return(found);}

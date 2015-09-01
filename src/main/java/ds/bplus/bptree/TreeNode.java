@@ -1,5 +1,7 @@
 package ds.bplus.bptree;
 
+import ds.bplus.util.InvalidBTreeStateException;
+
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.InvalidPropertiesFormatException;
@@ -17,6 +19,7 @@ public abstract class TreeNode {
     private long pageIndex;                 // node page index
     private int currentCapacity;            // current capacity
     protected LinkedList<Long> keyArray;    // key array
+    private boolean beingDeleted;           // deleted flag
 
 
     /**
@@ -30,6 +33,7 @@ public abstract class TreeNode {
         this.pageIndex = pageIndex;         // node page index
         this.currentCapacity = 0;           // current capacity
         this.keyArray = new LinkedList<>(); // instantiate the linked list
+        this.beingDeleted = true;
     }
 
     /**
@@ -64,24 +68,81 @@ public abstract class TreeNode {
                 {return (isEmpty());}
             // otherwise return based on degree
             else
-                {return (conf.getMinLeafNodeCapacity() <= currentCapacity);}
+                {return (conf.getMinLeafNodeCapacity() >= currentCapacity);}
         }
         else
         // internal
-        {return(conf.getMinInternalNodeCapacity() <= currentCapacity);}
+        {return(conf.getMinInternalNodeCapacity() >= currentCapacity);}
     }
 
     public int getCurrentCapacity()
         {return(currentCapacity);}
 
-    public void incrementCapacity()
-        {currentCapacity++;}
+    public void incrementCapacity(BPlusConfiguration conf) throws InvalidBTreeStateException {
+        currentCapacity++;
+        validateNodeCapacityLimits(conf);
+    }
 
-    public void decrementCapacity()
-        {currentCapacity--;}
+    public void decrementCapacity(BPlusConfiguration conf)
+            throws InvalidBTreeStateException {
+        currentCapacity--;
+        validateNodeCapacityLimits(conf);
+    }
 
     public void setCurrentCapacity(int newCap)
         {currentCapacity = newCap;}
+
+    private void validateNodeCapacityLimits(BPlusConfiguration conf)
+            throws InvalidBTreeStateException {
+
+        if(isRoot()) {
+            if(currentCapacity < 0) {
+                throw new InvalidBTreeStateException("Cannot have less than zero elements");
+            } else if(isLeaf() && currentCapacity > conf.getMaxLeafNodeCapacity()) {
+                throw new InvalidBTreeStateException("Exceeded leaf node " +
+                        "allowed capacity at root");
+            } else if(isInternalNode() && currentCapacity > conf.getMaxInternalNodeCapacity()) {
+                throw new InvalidBTreeStateException("Exceeded internal node " +
+                        "allowed capacity at root");
+            }
+        } else {
+            if(isLeaf()) {
+                //conf.getMinLeafNodeCapacity()
+                if(beingDeleted && currentCapacity < 0) {
+                    throw new InvalidBTreeStateException("Cannot have less than " +
+                            0 + " elements in a leaf node when deleting it");
+                } else if(!beingDeleted && currentCapacity < conf.getMinLeafNodeCapacity()) {
+                    throw new InvalidBTreeStateException("Cannot have less than " +
+                            conf.getMinLeafNodeCapacity() + " elements in a leaf node");
+                }
+                else if(currentCapacity > conf.getMaxLeafNodeCapacity()) {
+                    throw new InvalidBTreeStateException("Exceeded leaf node " +
+                            "allowed capacity (node)");
+                }
+            } else if(isInternalNode()) {
+                //conf.getMinInternalNodeCapacity()
+                if(beingDeleted && currentCapacity < 0) {
+                    throw new InvalidBTreeStateException("Cannot have less than " +
+                            0 + " elements in an internal node");
+                }
+                else if(!beingDeleted && currentCapacity < conf.getMinInternalNodeCapacity()) {
+                    throw new InvalidBTreeStateException("Cannot have less than " +
+                            conf.getMinInternalNodeCapacity() +
+                            " elements in an internal node");
+                }
+                else if(currentCapacity > conf.getMaxInternalNodeCapacity()) {
+                    throw new InvalidBTreeStateException("Exceeded internal node " +
+                            "allowed capacity (node)");
+                }
+            }
+        }
+    }
+
+    public void setBeingDeleted(boolean beingDeleted)
+        {this.beingDeleted = beingDeleted;}
+
+    public boolean getBeingDeleted()
+        {return beingDeleted;}
 
     /**
      * Check if the node is empty (and *definitely* needs merging)
@@ -161,8 +222,16 @@ public abstract class TreeNode {
     public TreeNodeType getNodeType()
         {return(nodeType);}
 
-    public long getKeyAt(int index)
-        {return(keyArray.get(index));}
+    public long getKeyAt(int index) throws InvalidBTreeStateException {
+        /*
+        if(index < 0 || index >= keyArray.size()) {
+            System.exit(0);
+            throw new InvalidBTreeStateException("Index out of bounds");
+        }
+        */
+
+        return(keyArray.get(index));
+    }
 
     /**
      * Return the page index
@@ -303,7 +372,7 @@ public abstract class TreeNode {
      */
     public abstract void writeNode(RandomAccessFile r, BPlusConfiguration conf,
                                    BPlusTreePerformanceCounter bPerf)
-            throws IOException;
+            throws IOException, InvalidBTreeStateException;
 
     /**
      *
