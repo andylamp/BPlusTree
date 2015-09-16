@@ -705,7 +705,9 @@ public class BPlusTree {
             TreeInternalNode inode = (TreeInternalNode)current;
             int idx = i;
             // check if we are at the end
-            if(key >= current.getKeyAt(i)) {idx++;}
+            if(key >= current.getKeyAt(i)) {
+                idx++;
+            }
             // read the next node
             TreeNode next = readNode(inode.getPointerAt(idx));
             // finally return the resulting set
@@ -720,8 +722,11 @@ public class BPlusTree {
                         " not found, reached limits");
                 return (new DeleteResult(key, rvals));
             } else if(key != l.getKeyAt(i)) {
+                TreeLeaf pleaf = (TreeLeaf)readNode(l.getPrevPagePointer()),
+                         nleaf = (TreeLeaf)readNode(l.getNextPagePointer());
                 System.out.println("Key with value: " + key + " not found, key mismatch");
-                return (new DeleteResult(key, rvals));
+                throw new InvalidBTreeStateException("Key not found!");
+                //return (new DeleteResult(key, rvals));
             }
             else {
 
@@ -817,8 +822,8 @@ public class BPlusTree {
      * @return true if it is, false if it's not
      */
     private boolean isParent(TreeNode node, TreeInternalNode parent, int pindex) {
-        return parent.getCurrentCapacity() > pindex && pindex >= 0 &&
-                (node.getPageIndex() == parent.getPointerAt(pindex));
+        return(parent.getCurrentCapacity() >= pindex && pindex >= 0 &&
+                (node.getPageIndex() == parent.getPointerAt(pindex)));
     }
 
     /**
@@ -1038,10 +1043,11 @@ public class BPlusTree {
      *
      * @param left left-most leaf to merge
      * @param right right-most leaf to merge
+     * @param other the other cached node
      * @param parent parent of both leaves (internal node)
      * @param parentPointerIndex index of parent that has these two pointers
      */
-    private TreeNode mergeNodes(TreeLeaf left, TreeLeaf right,
+    private TreeNode mergeNodes(TreeLeaf left, TreeLeaf right, TreeLeaf other,
                             TreeInternalNode parent, int parentPointerIndex,
                             int parentKeyIndex, boolean isLeftOfNext,
                                 boolean useNextPointer)
@@ -1067,9 +1073,30 @@ public class BPlusTree {
         // update the next pointers
         left.setNextPagePointer(right.getNextPagePointer());
         // now fix the top pointer
-        updateParentPointerAfterMerge(parent,
-                useNextPointer ? (parentPointerIndex + 1) : parentPointerIndex,
-                (isLeftOfNext && useNextPointer) ? (parentKeyIndex+1) : parentKeyIndex);
+        if(useNextPointer) {
+            if(isLeftOfNext) {
+                parent.removeKeyAt(parentKeyIndex+1);
+                parent.removePointerAt(parentPointerIndex+1);
+            } else {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex+1);
+            }
+        } else {
+            if(isLeftOfNext) {
+                //TODO check this.
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex);
+            } else {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex);
+                parent.setKeyArrayAt(parentKeyIndex-1, other.getFirstKey());
+            }
+        }
+
+        // update capacity as in both cases we remove a value
+        parent.decrementCapacity(conf);
+        // write parent node
+        parent.writeNode(treeFile, conf, bPerf);
 
         // update the prev pointer of right next node (if any)
         if(right.getNextPagePointer() != -1) {
@@ -1131,8 +1158,10 @@ public class BPlusTree {
      * @param parentPointerIndex index of the parent that has these two pointers
      */
     private TreeNode mergeNodes(TreeInternalNode left, TreeInternalNode right,
-                            TreeInternalNode parent, int parentPointerIndex,
-                            int parentKeyIndex, boolean isLeftOfNext,
+                            TreeInternalNode other, TreeInternalNode parent,
+                                int parentPointerIndex,
+                                int parentKeyIndex,
+                                boolean isLeftOfNext,
                                 boolean useNextPointer)
             throws IOException, InvalidBTreeStateException {
 
@@ -1163,9 +1192,34 @@ public class BPlusTree {
         // now increment the capacity as well
         left.incrementCapacity(conf);
         // now fix the top pointer.
-        updateParentPointerAfterMerge(parent,
-                useNextPointer ? (parentPointerIndex+1) : parentPointerIndex,
-                (isLeftOfNext && useNextPointer) ? (parentKeyIndex+1) : parentKeyIndex);
+
+
+        // now fix the top pointer
+        if(useNextPointer) {
+            if(isLeftOfNext) {
+                parent.removeKeyAt(parentKeyIndex+1);
+                parent.removePointerAt(parentPointerIndex+1);
+            } else {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex+1);
+            }
+        } else {
+            if(isLeftOfNext) {
+                //TODO check this.
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex);
+            } else {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex);
+                parent.setKeyArrayAt(parentKeyIndex-1, other.getFirstKey());
+            }
+        }
+
+        // update capacity as in both cases we remove a value
+        parent.decrementCapacity(conf);
+        // write parent node
+        parent.writeNode(treeFile, conf, bPerf);
+
         // write the node
         left.writeNode(treeFile, conf, bPerf);
         // remove the page
@@ -1199,27 +1253,6 @@ public class BPlusTree {
 
         // finally remove the page
         deletePage(right.getPageIndex(), false);
-    }
-
-    /**
-     * This function updates the parent node after merging two of it's children.
-     *
-     * @param parent the parent node
-     * @param parentPointerIndex the index of the split node
-     * @throws IOException
-     */
-    private void updateParentPointerAfterMerge(TreeInternalNode parent,
-                                               int parentPointerIndex,
-                                               int parentKeyIndex)
-            throws IOException, InvalidBTreeStateException {
-
-        parent.removeKeyAt(parentKeyIndex);
-        parent.removePointerAt(parentPointerIndex);
-
-        // update capacity as in both cases we remove a value
-        parent.decrementCapacity(conf);
-        // update the parent
-        parent.writeNode(treeFile, conf, bPerf);
     }
 
     /**
@@ -1470,7 +1503,7 @@ public class BPlusTree {
         else if(npar) {
             System.out.println("Merging leaf next");
             // it's the case where split node is the left node from parent
-            mnode = mergeNodes(splitNode, nptr, parent,
+            mnode = mergeNodes(splitNode, nptr, pptr, parent,
                     parentPointerIndex, parentKeyIndex,
                     isLeftOfNext, /*useNextPointer = */ true);
         }
@@ -1478,7 +1511,7 @@ public class BPlusTree {
         else if(ppar) {
             System.out.println("Merging leaf prev");
             // it's the case where split node is in the left from parent
-            mnode = mergeNodes(pptr, splitNode, parent,
+            mnode = mergeNodes(pptr, splitNode, nptr, parent,
                     parentPointerIndex, parentKeyIndex,
                     isLeftOfNext, /*useNextPointer = */ false);
         } else
@@ -1567,13 +1600,13 @@ public class BPlusTree {
             System.out.println(" -- Internal merging actually happens");
             // check if we can merge with the right node
             if(nptr != null && nptr.isTimeToMerge(conf)) {
-                mnode = mergeNodes(splitNode, nptr, parent,
+                mnode = mergeNodes(splitNode, nptr, pptr, parent,
                         parentPointerIndex, parentKeyIndex,
                         isLeftOfNext, /*useNextPointer = */ true);
             }
             // now, check if we can merge with the left node
             else if(pptr != null && pptr.isTimeToMerge(conf)) {
-                mnode = mergeNodes(pptr, splitNode, parent,
+                mnode = mergeNodes(pptr, splitNode, nptr, parent,
                         parentPointerIndex, parentKeyIndex,
                         isLeftOfNext, /*useNextPointer = */ false);
             } else {
@@ -1993,6 +2026,22 @@ public class BPlusTree {
      */
     public void printCurrentConfiguration()
         {conf.printConfiguration();}
+
+    /**
+     * Returns the total number of pages currently in use
+     * @return
+     */
+    @SuppressWarnings("unused")
+    public long getTotalTreePages()
+        {return totalTreePages;}
+
+    /**
+     * Max index used (indicates the filesize)
+     * @return
+     */
+    @SuppressWarnings("unused")
+    public long getMaxPageIndex()
+        {return maxPageIndex;}
 
     @SuppressWarnings("unused")
     public void printTree() throws IOException {

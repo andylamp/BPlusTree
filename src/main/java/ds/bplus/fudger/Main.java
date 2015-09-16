@@ -5,7 +5,6 @@ import ds.bplus.bptree.BPlusTree;
 import ds.bplus.bptree.BPlusTreePerformanceCounter;
 import ds.bplus.bptree.SearchResult;
 import ds.bplus.util.InvalidBTreeStateException;
-import ds.bplus.util.TestRunner;
 import ds.bplus.util.Utilities;
 
 import java.io.IOException;
@@ -22,8 +21,9 @@ public class Main {
         BPlusTreePerformanceCounter bPerf = new BPlusTreePerformanceCounter(true);
         BPlusTree bt = new BPlusTree(btconf, recreateTree ? "rw+" : "rw", bPerf);
 
+        int tlen = 10000;
         long skey = 0;
-        long eKey = 100;
+        long eKey = tlen;
         String val = "1234567890";
         boolean unique = true;
         bt.printCurrentConfiguration();
@@ -45,7 +45,7 @@ public class Main {
         int flag = 6;
 
         if(flag == 1) {
-            for(int i = 99; i > 0; i--) {
+            for(int i = tlen-1; i > 0; i--) {
                 bt.deleteKey(i, true);
             }
         } else if(flag == 2) {
@@ -111,37 +111,94 @@ public class Main {
             }
         }
         else if(flag == 6) {
-            LinkedList<Integer> l = new LinkedList<>();
-            for(int i = 0; i < 100; i++) {
+            // we need to fix this
+            LinkedList<Integer> l = new LinkedList<>(),
+                                lq = new LinkedList<>();
+            for(int i = 0; i < tlen; i++) {
                 l.add(i);
             }
             int index;
+            int found_cnt = 0;
             Random r = new Random();
-            for(int i = 0; i < 100; i++) {
+            for(int i = 0; i < tlen; i++) {
                 index = r.nextInt(l.size());
-                bt.deleteKey(l.remove(index), true);
+                lq.push(l.remove(index));
+                System.out.println(" -- Iteration " + i);
+                bt.deleteKey(lq.getFirst(), true);
             }
+
+
+
+
+            System.out.println("Total pages in the before second fill-up: " + bt.getTotalTreePages());
+
+
 
             Utilities.sequentialAddToTree(skey, eKey,
                     val, unique, bt);
 
-            for(int i = 0; i < 100; i++) {
+            for(int i = 0; i < tlen; i++) {
                 l.add(i);
             }
 
-            for(int i = 0; i < 50; i++) {
+            for(int i = 0; i < tlen/2; i++) {
                 index = r.nextInt(l.size());
                 bt.deleteKey(l.remove(index), true);
             }
 
-            for(int i = 0; i < 50; i++) {
+            for(int i = 0; i < tlen/2; i++) {
                 index = r.nextInt(l.size());
                 SearchResult sres = bt.searchKey(l.remove(index), false);
                 if(sres.isFound()) {
+                    found_cnt++;
                     System.out.println(" -- Key " + sres.getKey() + " is found");
                 } else {
                     System.out.println(" -- Key " + sres.getKey() + " is NOT found");
                 }
+            }
+            System.out.println("Found keys: " + found_cnt + " out of: " + tlen/2 + " keys");
+
+            //int p = 0;
+        } else if(flag == 7) {
+            LinkedList<Integer> l = new LinkedList<>();
+            int index;
+            int found_cnt = 0;
+            Random r = new Random();
+
+            for(int i = 0; i < tlen; i++) {l.add(i);}
+
+            for(int i = 0; i < tlen; i++) {
+                index = r.nextInt(l.size());
+                SearchResult sres = bt.searchKey(l.remove(index), false);
+                if(sres.isFound()) {
+                    found_cnt++;
+                    System.out.println(" -- Key " + sres.getKey() + " is found");
+                } else {
+                    System.out.println(" -- Key " + sres.getKey() + " is NOT found");
+                }
+            }
+            System.out.println("Found keys: " + found_cnt + " out of: " + tlen + " keys");
+        } else if(flag == 8) {
+            LinkedList<Integer> l = new LinkedList<>();
+            int index;
+            int found_cnt = 0;
+
+
+            l.add(24);
+            l.add(70);
+            l.add(13);
+            l.add(6);
+            l.add(23);
+            l.add(60);
+            l.add(50);
+            l.add(43); // should have a problem there
+            l.add(51);
+            l.add(66);
+            l.add(76); // exception
+
+            int lsize = l.size();
+            for(int i = 0; i < lsize; i++) {
+                bt.deleteKey(l.removeFirst(), true);
             }
         }
 
@@ -149,11 +206,13 @@ public class Main {
 
         //TrialsClass.runSearchTrial(200, 0, 99, true, bPerf, true);
 
+        /*
         if(fastTrials)
             {TestRunner.runDefaultTrialsFast(bPerf);}
         else
             {TestRunner.runBench(bPerf);}
-
+        */
+        System.out.println("Total pages in the end: " + bt.getTotalTreePages());
         // finally close it.
         bt.commitTree();
 

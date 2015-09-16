@@ -3,6 +3,7 @@ package ds.bplus.util;
 import ds.bplus.bptree.BPlusTree;
 
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.Random;
 
 public class Utilities {
@@ -43,6 +44,24 @@ public class Utilities {
                 System.out.println("Currently at: " + i);
             }
             bt.insertKey(i, val, unique);
+        }
+    }
+
+    public static void fuzzyAddToTree(long from, long to, String val,
+                                      boolean unique, BPlusTree bt)
+            throws IOException, InvalidBTreeStateException {
+
+        if(!unique) {
+            LinkedList<Long> l = new LinkedList<>();
+            for(long i = from; i < to; i++) {
+                l.add(i-from);
+            }
+            int index;
+
+            for(long i = from; i < to; i++) {
+                index = rand.nextInt(l.size());
+                bt.insertKey(l.remove(index), val, unique);
+            }
         }
     }
 }
