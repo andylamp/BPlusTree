@@ -89,7 +89,7 @@ public class BPlusTreeTest {
               "tree256.bin", bPerf256);
       bt1024 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
               "tree1024.bin", bPerf1024);
-      bt2048 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
+      bt2048 = new BPlusTree(btConf2048, recreateTree ? "rw+" : "rw",
               "tree2048.bin", bPerf2048);
 
       // now set up the insertions
@@ -150,7 +150,7 @@ public class BPlusTreeTest {
               "tree256.bin", bPerf256);
       bt1024 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
               "tree1024.bin", bPerf1024);
-      bt2048 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
+      bt2048 = new BPlusTree(btConf2048, recreateTree ? "rw+" : "rw",
               "tree2048.bin", bPerf2048);
 
       // now set up the insertions
