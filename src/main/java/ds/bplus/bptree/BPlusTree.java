@@ -179,7 +179,10 @@ public class BPlusTree {
         long keyToAdd;
         TreeNode ynode = aChild; // x.c_{i}
         if(ynode.isInternalNode()) {
-            znode = new TreeInternalNode(TreeNodeType.TREE_INTERNAL_NODE,
+            TreeInternalNode zInternal,
+                             yInternal = (TreeInternalNode) ynode;
+
+            zInternal = new TreeInternalNode(TreeNodeType.TREE_INTERNAL_NODE,
                     generateFirstAvailablePageIndex(conf));
 
             bPerf.incrementTotalInternalNodes();
@@ -189,66 +192,83 @@ public class BPlusTree {
 
             int i;
             for(i = 0; i < setIndex; i++) {
-                znode.addToKeyArrayAt(i, ynode.popKey());
-                ((TreeInternalNode)znode).addPointerAt(i,
-                        ((TreeInternalNode)ynode).popPointer());
+                zInternal.addToKeyArrayAt(i, yInternal.popKey());
+                zInternal.addPointerAt(i, yInternal.popPointer());
             }
-            ((TreeInternalNode)znode).addPointerAt(i,
-                    ((TreeInternalNode)ynode).popPointer());
+            zInternal.addPointerAt(i, yInternal.popPointer());
+            //keyToAdd = ynode.getFirstKey();
             keyToAdd = ynode.popKey();
 
-            znode.setCurrentCapacity(setIndex);
-            ynode.setCurrentCapacity(setIndex);
+            zInternal.setCurrentCapacity(setIndex);
+            yInternal.setCurrentCapacity(setIndex);
 
             // it it was the root, invalidate it and make it a regular internal node
-            if(ynode.isRoot()) {
-                ynode.setNodeType(TreeNodeType.TREE_INTERNAL_NODE);
+            if(yInternal.isRoot()) {
+                yInternal.setNodeType(TreeNodeType.TREE_INTERNAL_NODE);
                 bPerf.incrementRootSplits();
             }
             bPerf.incrementInternalNodeSplits();
 
             // update pointer at n_{index+1}
-            n.addPointerAt(index, znode.getPageIndex());
+            n.addPointerAt(index, zInternal.getPageIndex());
             // update key value at n[index]
             n.addToKeyArrayAt(index, keyToAdd);
             // adjust capacity
             n.incrementCapacity(conf);
+            // update shared child pointer.
+            aChild = zInternal;
+            // update reference
+            znode = zInternal;
         }
         // we have a leaf
         else {
-            znode = new TreeLeaf(((TreeLeaf)ynode).getNextPagePointer(),
-                    ynode.getPageIndex(), TreeNodeType.TREE_LEAF,
+            TreeLeaf zLeaf,
+                     yLeaf = (TreeLeaf) ynode,
+                     afterLeaf;
+
+            zLeaf = new TreeLeaf(yLeaf.getNextPagePointer(),
+                    yLeaf.getPageIndex(), TreeNodeType.TREE_LEAF,
                     generateFirstAvailablePageIndex(conf));
+
+            // update the previous pointer from the node after ynode
+            if(yLeaf.getNextPagePointer() != -1) {
+                afterLeaf = (TreeLeaf) readNode(yLeaf.getNextPagePointer());
+                afterLeaf.setPrevPagePointer(zLeaf.getPageIndex());
+                afterLeaf.writeNode(treeFile, conf, bPerf);
+            }
 
             bPerf.incrementTotalLeaves();
 
             // update pointers in ynode, only have to update next pointer
-            ((TreeLeaf)ynode).setNextPagePointer(znode.getPageIndex());
+            yLeaf.setNextPagePointer(zLeaf.getPageIndex());
 
             setIndex = conf.getLeafNodeDegree()-1;
 
             for(int i = 0; i < setIndex; i++) {
-                znode.pushToKeyArray(ynode.removeLastKey());
-                ((TreeLeaf)znode).pushToValueList(((TreeLeaf)ynode).removeLastValue());
-                ((TreeLeaf)znode).pushToOverflowList(
-                        ((TreeLeaf) ynode).removeLastOverflowPointer());
-                znode.incrementCapacity(conf);
-                ynode.decrementCapacity(conf);
+                //long fk = ynode.getLastKey();
+                //long ovf1 = ((TreeLeaf)ynode).getLastOverflowPointer();
+                zLeaf.pushToKeyArray(yLeaf.removeLastKey());
+                zLeaf.pushToValueList(yLeaf.removeLastValue());
+                zLeaf.pushToOverflowList(yLeaf.removeLastOverflowPointer());
+                zLeaf.incrementCapacity(conf);
+                yLeaf.decrementCapacity(conf);
             }
 
             // it it was the root, invalidate it and make it a regular leaf
-            if(ynode.isRoot()) {
-                ynode.setNodeType(TreeNodeType.TREE_LEAF);
+            if(yLeaf.isRoot()) {
+                yLeaf.setNodeType(TreeNodeType.TREE_LEAF);
                 bPerf.incrementRootSplits();
             }
             bPerf.incrementTotalLeafSplits();
 
             // update pointer at n_{index+1}
-            n.addPointerAt(index + 1, znode.getPageIndex());
+            n.addPointerAt(index + 1, zLeaf.getPageIndex());
             // update key value at n[index]
-            n.addToKeyArrayAt(index, znode.getKeyAt(0));
+            n.addToKeyArrayAt(index, zLeaf.getKeyAt(0));
             // adjust capacity
             n.incrementCapacity(conf);
+            // update reference
+            znode = zLeaf;
         }
 
         znode.setBeingDeleted(false);
@@ -258,7 +278,6 @@ public class BPlusTree {
         n.writeNode(treeFile, conf, bPerf);
         // commit page counts
         updatePageIndexCounts(conf);
-
     }
 
     /**
@@ -289,6 +308,8 @@ public class BPlusTree {
             novf.incrementCapacity(conf);
             // update overflow pointer to parent node
             ovf.setNextPagePointer(novf.getPageIndex());
+            // set being deleted to false
+            novf.setBeingDeleted(false);
             // commit changes to new overflow page
             novf.writeNode(treeFile, conf, bPerf);
             // commit changes to old overflow page
@@ -297,11 +318,15 @@ public class BPlusTree {
             TreeLeaf l = (TreeLeaf)n;
             novf = new TreeOverflow(-1L, l.getPageIndex(),
                     generateFirstAvailablePageIndex(conf));
+//            System.out.println("Creating overflow page with index: " + novf.getPageIndex() +
+//                    " for key: " + l.getKeyAt(index));
             // push the first value
             novf.pushToValueList(value);
             novf.incrementCapacity(conf);
             // update overflow pointer to parent node
-            l.addToOverflowList(index, novf.getPageIndex());
+            l.setOVerflowPointerAt(index, novf.getPageIndex());
+            // set being deleted to false
+            novf.setBeingDeleted(false);
             // commit changes to overflow page
             novf.writeNode(treeFile, conf, bPerf);
             // commit changes to leaf page
@@ -320,11 +345,11 @@ public class BPlusTree {
     }
 
     /**
-     * This function is inspired but the one given in CLRS for inserting a key to
+     * This function is inspired from the one given in CLRS for inserting a key to
      * a B-Tree but as splitTreeNode has been (heavily) modified in order to be used
      * in our B+ Tree. It supports handling duplicate keys (if enabled) as well.
      *
-     * It is able to insert the (Key, Value) paris using only one pass through the tree.
+     * It is able to insert the (Key, Value) pairs using only one pass through the tree.
      *
      * @param n current node
      * @param key key to add
@@ -338,8 +363,6 @@ public class BPlusTree {
         int i = n.getCurrentCapacity();
         // descend down the node
         while(i > 0 && key < n.getKeyAt(i-1)) {i--;}
-        // correction
-        //i++;
         // check if we have a leaf
         if(n.isLeaf()) {
             TreeLeaf l = (TreeLeaf)n;
@@ -350,7 +373,12 @@ public class BPlusTree {
             //
             // Not that we do *not* add the key if we have a true unique flag
 
-            if(n.getCurrentCapacity() > 0 && n.getKeyAt(/*(i == 0 ? i : i-1)*/i-1) == key) {
+
+            // this is to adjust for a corner case due to indexing
+            int iadj = (n.getCurrentCapacity() > 0 &&
+                    i == 0 && n.getFirstKey() > key) ? i : i-1;
+
+            if(n.getCurrentCapacity() > 0 && n.getKeyAt(iadj) == key) {
 
                 if(unique) {
                     //System.out.println("Duplicate entry found and unique " +
@@ -361,13 +389,14 @@ public class BPlusTree {
                 //System.out.println("Duplicate found! Adding to overflow page!");
 
                 // overflow page does not exist, yet; time to create it!
-                if(l.getOverflowPointerAt(i-1) < 0)
-                    {createOverflowPage(l, (i-1), value);}
+                if(l.getOverflowPointerAt(iadj) < 0) {
+                    createOverflowPage(l, iadj, value);
+                }
                 // page already exists, so pull it and check if it has
                 // available space, if it does all is good; otherwise we
                 // pull the next overflow page or we create another one.
                 else {
-                    TreeOverflow ovf = (TreeOverflow)readNode(l.getOverflowPointerAt(i-1));
+                    TreeOverflow ovf = (TreeOverflow)readNode(l.getOverflowPointerAt(iadj));
 
                     while(ovf.isFull(conf)) {
                         // check if we have more, if not create
@@ -394,7 +423,6 @@ public class BPlusTree {
                 // also create a NULL overflow pointer
                 l.addToOverflowList(i, -1L);
                 l.incrementCapacity(conf);
-
                 // commit the changes
                 l.writeNode(treeFile, conf, bPerf);
             }
@@ -433,12 +461,11 @@ public class BPlusTree {
             //
 
             TreeInternalNode inode = (TreeInternalNode)n;
-            //aChild = readNode(inode.getPointerAt(i));
             aChild = readNode(inode.getPointerAt(i));
             TreeNode nextAfterAChild = null;
             if(aChild.isFull(conf)) {
                 splitTreeNode(inode, i);
-                if (key > n.getKeyAt(i)) {
+                if (key >= n.getKeyAt(i)) {
                     useChild = false;
                     nextAfterAChild = readNode(inode.getPointerAt(i+1));
                 }
@@ -661,7 +688,7 @@ public class BPlusTree {
      */
     @SuppressWarnings("unused")
     public DeleteResult deleteKey(long key, boolean unique)
-            throws IOException, InvalidBTreeStateException  {
+    throws IOException, InvalidBTreeStateException  {
         if(root.isEmpty()) {
             LinkedList<String> l = null;
             return(new DeleteResult(key, l));
@@ -722,18 +749,14 @@ public class BPlusTree {
                         " not found, reached limits");
                 return (new DeleteResult(key, rvals));
             } else if(key != l.getKeyAt(i)) {
-                TreeLeaf pleaf = (TreeLeaf)readNode(l.getPrevPagePointer()),
-                         nleaf = (TreeLeaf)readNode(l.getNextPagePointer());
                 System.out.println("Key with value: " + key + " not found, key mismatch");
-                throw new InvalidBTreeStateException("Key not found!");
-                //return (new DeleteResult(key, rvals));
+                //throw new InvalidBTreeStateException("Key not found!");
+                return (new DeleteResult(key, rvals));
             }
             else {
 
                 System.out.println("Found the key " + key + ", removing it");
-
                 rvals = new LinkedList<>();
-
 
                 // we we *have* to make a choice on where to make
                 // a read trade off.
@@ -1083,7 +1106,6 @@ public class BPlusTree {
             }
         } else {
             if(isLeftOfNext) {
-                //TODO check this.
                 parent.removeKeyAt(parentKeyIndex);
                 parent.removePointerAt(parentPointerIndex);
             } else {
@@ -1205,7 +1227,6 @@ public class BPlusTree {
             }
         } else {
             if(isLeftOfNext) {
-                //TODO check this.
                 parent.removeKeyAt(parentKeyIndex);
                 parent.removePointerAt(parentPointerIndex);
             } else {
@@ -1456,6 +1477,9 @@ public class BPlusTree {
             System.out.println("Leaf node merging/redistribution needs to happen");
         }
 
+        // validate neighbouring nodes
+        validateNeighbours(pptr, splitNode, nptr);
+
         int nnum = canRedistribute(nptr);
         int pnum = canRedistribute(pptr);
         int snum = canRedistribute(splitNode);
@@ -1520,6 +1544,33 @@ public class BPlusTree {
                     "common parent");}
 
         return(mnode);
+    }
+
+    /**
+     * Extra validation on leaf pointers
+     *
+     * @param prev
+     * @param split
+     * @param next
+     * @throws InvalidBTreeStateException
+     */
+    private void validateNeighbours(TreeLeaf prev, TreeLeaf split, TreeLeaf next)
+            throws InvalidBTreeStateException {
+        if(prev != null) {
+            if(split.getPrevPagePointer() != prev.getPageIndex()) {
+                throw new InvalidBTreeStateException("Split prev pointer not matching prev page index");
+            } else if(prev.getNextPagePointer() != split.getPageIndex()) {
+                throw new InvalidBTreeStateException("Split page index not matching prev pointer");
+            }
+        }
+
+        if(next != null) {
+            if(split.getNextPagePointer() != next.getPageIndex()) {
+                throw new InvalidBTreeStateException("Split next pointer not matching next page index");
+            } else if(next.getPrevPagePointer() != split.getPageIndex()) {
+                throw new InvalidBTreeStateException("Split page index not matching next pointer");
+            }
+        }
     }
 
     /**
@@ -2122,6 +2173,11 @@ public class BPlusTree {
      * @return the conditioned string
      */
     private String conditionString(String s) {
+        if(s == null) {
+            s = " ";
+            //System.out.println("Cannot have a null string");
+        }
+
         if(s.length() > conf.getEntrySize()) {
             System.out.println("Satellite length can't exceed " +
                     conf.getEntrySize() + " trimming...");

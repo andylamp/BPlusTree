@@ -27,11 +27,11 @@ public class Main {
         String val = "1234567890";
         boolean unique = true;
         bt.printCurrentConfiguration();
-        if(recreateTree) {
-            Utilities.sequentialAddToTree(skey, eKey,
-                    val, unique, bt);
-            bPerf.printTotalStatistics();
-        }
+//        if(recreateTree) {
+//            Utilities.sequentialAddToTree(skey, eKey,
+//                    val, unique, bt);
+//            bPerf.printTotalStatistics();
+//        }
         /*
         for(int i = 0; i < 150; i++)
             {bt.insertKey(100, "1234567890", false);}
@@ -40,16 +40,36 @@ public class Main {
             {bt.deleteKey(100, true);}
         */
 
+//        for(int i = 999; i >= 0; i--) {
+//            {bt.insertKey(i, "1234567890", false);}
+//        }
 
+        for(int i = 0; i < 1000; i++) {
+            {bt.insertKey(i, "1234567890", false);}
+        }
 
-        int flag = 6;
+        for(int i = 0; i < 1000; i++) {
+            if(!bt.searchKey(i, false).isFound()) {
+                throw new InvalidBTreeStateException("Key " + i + " not found");
+            }
+        }
+
+        for(int i = 0; i < 1000; i++) {
+            {bt.deleteKey(i, false);}
+        }
+//
+//        for(int i = 999; i >= 0; i--) {
+//            {bt.deleteKey(i, false);}
+//        }
+
+        int flag = 2;
 
         if(flag == 1) {
-            for(int i = tlen-1; i > 0; i--) {
+            for(int i = tlen-1; i >= 0; i--) {
                 bt.deleteKey(i, true);
             }
         } else if(flag == 2) {
-            for(int i = 0; i < 100; i++) {
+            for(int i = 0; i < tlen; i++) {
                 bt.deleteKey(i, true);
             }
         }

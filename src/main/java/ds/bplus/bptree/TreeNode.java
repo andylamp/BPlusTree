@@ -106,7 +106,17 @@ public abstract class TreeNode {
                         "allowed capacity at root");
             }
         } else {
-            if(isLeaf()) {
+            if(isOverflow()) {
+                if(beingDeleted && currentCapacity < 0) {
+                    throw new InvalidBTreeStateException("Cannot have less than " +
+                            0 + " elements in a overflow node when deleting it");
+                }
+                else if(currentCapacity > conf.getMaxOverflowNodeCapacity()) {
+                    throw new InvalidBTreeStateException("Exceeded overflow node " +
+                            "allowed capacity (node)");
+                }
+            }
+            else if(isLeaf()) {
                 //conf.getMinLeafNodeCapacity()
                 if(beingDeleted && currentCapacity < 0) {
                     throw new InvalidBTreeStateException("Cannot have less than " +

@@ -27,7 +27,7 @@ public class BPlusConfiguration {
      *
      */
     public BPlusConfiguration() {
-        this.pageSize = 2048;                           // page size (in bytes)
+        this.pageSize = 1024;                           // page size (in bytes)
         this.entrySize = 20;                            // each entry size (in bytes)
         this.keySize = 8;                               // key size (in bytes)
         this.headerSize =                               // header size in bytes
@@ -35,6 +35,28 @@ public class BPlusConfiguration {
         this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
         this.lookupPageSize = pageSize - headerSize;    // lookup page size
+        // now calculate the tree degree
+        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
+        // leaf & overflow have the same header size.
+        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
+        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
+        checkDegreeValidity();
+    }
+
+    /**
+     * Overloaded constructor allows page size adjustments
+     *
+     * @param pageSize page size (in bytes)
+     */
+    public BPlusConfiguration(int pageSize) {
+        this.pageSize = pageSize;                           // page size (in bytes)
+        this.entrySize = 20;                                // entry size (in bytes)
+        this.keySize = 8;                                   // key size (in bytes)
+        this.headerSize =                                   // header size in bytes
+                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
+        this.internalNodeHeaderSize = 6;
+        this.leafHeaderSize = 22;
+        this.lookupPageSize = pageSize - headerSize;  // lookup page size
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         // leaf & overflow have the same header size.

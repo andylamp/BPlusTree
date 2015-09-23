@@ -2,7 +2,7 @@ package ds.bplus.util;
 
 import ds.bplus.bptree.BPlusTree;
 
-import java.io.IOException;
+import java.io.*;
 import java.util.LinkedList;
 import java.util.Random;
 
@@ -47,21 +47,100 @@ public class Utilities {
         }
     }
 
-    public static void fuzzyAddToTree(long from, long to, String val,
+    /**
+     * Add a random sequence of numbers in the tree using unique
+     * or discrete values for the key.
+     *
+     * @param from starting range (>= 0)
+     * @param to ending range
+     * @param unique use unique values flag
+     * @param bt tree instance to add the values
+     * @return the list of the values in reverse order of insertion
+     * @throws IOException
+     * @throws InvalidBTreeStateException
+     */
+    public static LinkedList<Long> fuzzyAddToTree(int from, int to,
                                       boolean unique, BPlusTree bt)
             throws IOException, InvalidBTreeStateException {
 
-        if(!unique) {
-            LinkedList<Long> l = new LinkedList<>();
-            for(long i = from; i < to; i++) {
-                l.add(i-from);
-            }
-            int index;
+        if(from < 0 || to < from)
+            {throw new IllegalArgumentException("range must > 0 and from > to");}
 
+        LinkedList<Long> l = new LinkedList<>();
+        if(!unique) {
             for(long i = from; i < to; i++) {
-                index = rand.nextInt(l.size());
-                bt.insertKey(l.remove(index), val, unique);
+                l.push((long) randInt(from, to));
+                bt.insertKey(l.peekFirst(), l.peekFirst().toString(), unique);
             }
+            //writeObjectToFile(l, "lfileex.ser");
+        } else {
+            throw new InvalidBTreeStateException("Not yet implemented");
         }
+
+        return(l);
+    }
+
+    /**
+     * Add values to a B+ Tree from a file
+     *
+     * @param filename file to load
+     * @param unique unique values?
+     * @param bt tree to add the values
+     * @return the list of the values in order of insertion
+     * @throws IOException
+     * @throws InvalidBTreeStateException
+     * @throws ClassNotFoundException
+     */
+    public static LinkedList<Long> addToTreeFromList(String filename, boolean unique,
+                                                     BPlusTree bt)
+            throws IOException, InvalidBTreeStateException, ClassNotFoundException {
+
+        LinkedList<Long> l = loadListFromFile(filename);
+        int lsize = l.size();
+        if(!unique) {
+            for(int i = 0; i < lsize; i++) {
+                Long key = l.get(i);
+                bt.insertKey(key, key.toString(), unique);
+            }
+        } else {
+            throw new InvalidBTreeStateException("Not yet implemented");
+        }
+
+        return(l);
+    }
+
+    /**
+     * Write object to file (used for testing certain key-sequences)
+     *
+     * @param obj Linked list to write
+     * @param filename filename to dump the object
+     * @throws IOException
+     */
+    public static void writeObjectToFile(LinkedList<Long> obj,
+                                         String filename) throws IOException {
+        System.out.println("Writing object to: " + filename);
+        FileOutputStream fout = new FileOutputStream(filename);
+        ObjectOutputStream foutStream = new ObjectOutputStream(fout);
+        foutStream.writeObject(obj);
+        foutStream.close();
+        System.out.println("Writing complete to file: " + filename);
+    }
+
+    /**
+     * Load linked list object from file (used for testing certain key-sequences)
+     *
+     * @param filename file to load the object from
+     * @return the object itself.
+     * @throws IOException
+     * @throws ClassNotFoundException
+     */
+    public static LinkedList<Long> loadListFromFile(String filename)
+            throws IOException, ClassNotFoundException {
+        System.out.println("Loading LinkedList<Long> object from file: " + filename);
+        FileInputStream fin = new FileInputStream(filename);
+        ObjectInputStream finStream = new ObjectInputStream(fin);
+        LinkedList<Long> l = (LinkedList<Long>)finStream.readObject();
+        finStream.close();
+        return l;
     }
 }

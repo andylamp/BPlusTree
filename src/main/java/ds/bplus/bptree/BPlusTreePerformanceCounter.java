@@ -274,7 +274,7 @@ public class BPlusTreePerformanceCounter {
                     getInterminentOverflowPageReads() + ", " +
                     getInterminentOverflowPageWrites());
         }
-        int res[] = new int[8];
+        int res[] = new int[9];
         res[0] = getPageReads();
         res[1] = getPageWrites();
         res[2] = getInterminentInternalPageReads();
@@ -283,6 +283,7 @@ public class BPlusTreePerformanceCounter {
         res[5] = getInterminentLeafPageWrites();
         res[6] = getInterminentOverflowPageReads();
         res[7] = getInterminentOverflowPageWrites();
+        res[8] = r.isFound() ? 1 : 0;
         totalDeletionReads += pageReads;
         totalDeletionWrites += pageWrites;
 
