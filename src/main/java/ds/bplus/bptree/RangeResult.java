@@ -12,7 +12,7 @@ import java.util.LinkedList;
 public class RangeResult {
 
     // our linked list
-    private LinkedList<KeyValueWrapper> queryResult;
+    private final LinkedList<KeyValueWrapper> queryResult;
 
     /**
      * Constructor that instantiates basically our linked list

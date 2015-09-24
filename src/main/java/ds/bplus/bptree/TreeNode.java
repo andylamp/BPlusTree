@@ -15,11 +15,11 @@ import java.util.LinkedList;
  */
 
 public abstract class TreeNode {
-    private TreeNodeType nodeType;          // actual node type
-    private long pageIndex;                 // node page index
-    private int currentCapacity;            // current capacity
-    protected LinkedList<Long> keyArray;    // key array
-    private boolean beingDeleted;           // deleted flag
+    private TreeNodeType nodeType;              // actual node type
+    private long pageIndex;                     // node page index
+    private int currentCapacity;                // current capacity
+    protected final LinkedList<Long> keyArray;  // key array
+    private boolean beingDeleted;               // deleted flag
 
 
     /**
@@ -232,16 +232,13 @@ public abstract class TreeNode {
     public TreeNodeType getNodeType()
         {return(nodeType);}
 
-    public long getKeyAt(int index) throws InvalidBTreeStateException {
-        /*
-        if(index < 0 || index >= keyArray.size()) {
-            System.exit(0);
-            throw new InvalidBTreeStateException("Index out of bounds");
-        }
-        */
-
-        return(keyArray.get(index));
-    }
+    /**
+     * Get the specific key at position indicated by <code>index</code>
+     * @param index the position to get the key
+     * @return the key at position
+     */
+    public long getKeyAt(int index)
+        {return(keyArray.get(index));}
 
     /**
      * Return the page index
@@ -382,7 +379,7 @@ public abstract class TreeNode {
      */
     public abstract void writeNode(RandomAccessFile r, BPlusConfiguration conf,
                                    BPlusTreePerformanceCounter bPerf)
-            throws IOException, InvalidBTreeStateException;
+            throws IOException;
 
     /**
      *

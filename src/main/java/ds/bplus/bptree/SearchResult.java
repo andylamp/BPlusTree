@@ -1,7 +1,5 @@
 package ds.bplus.bptree;
 
-import ds.bplus.util.InvalidBTreeStateException;
-
 import java.util.LinkedList;
 
 /**
@@ -17,8 +15,8 @@ import java.util.LinkedList;
 public class SearchResult {
 
     private TreeLeaf leafLoc;               // the leaf which our (K, V) might reside
-    private int index;                      // index where first key is <= our requested key
-    private boolean found;                  // we found the requested key?
+    private final int index;                // index where first key is <= our requested key
+    private final boolean found;            // we found the requested key?
     private LinkedList<String> ovfValues;   // linked list in the case of non-unique queries
 
     /**
@@ -65,7 +63,8 @@ public class SearchResult {
     public LinkedList<String> getValues()
         {return(ovfValues);}
 
-    public long getKey() throws InvalidBTreeStateException {return(leafLoc.getKeyAt(index));}
+    public long getKey()
+        {return(leafLoc.getKeyAt(index));}
 
     public boolean isFound()
         {return(found);}

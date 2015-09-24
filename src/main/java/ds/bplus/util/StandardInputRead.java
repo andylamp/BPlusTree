@@ -26,7 +26,7 @@ public class StandardInputRead {
     public final static int NEG_ERROR = 1;
 
     /** The basic reader*/
-    BufferedReader in;
+    final BufferedReader in;
 
     /**
      * Class constructor

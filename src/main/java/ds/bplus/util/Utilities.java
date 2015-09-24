@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class Utilities {
 
-    public static Random rand = new Random();
+    public static final Random rand = new Random();
 
     /**
      * Returns a pseudo-random number between min and max, inclusive.
@@ -71,21 +71,20 @@ public class Utilities {
         if(!unique) {
             for(long i = from; i < to; i++) {
                 l.push((long) randInt(from, to));
-                bt.insertKey(l.peekFirst(), l.peekFirst().toString(), unique);
+                bt.insertKey(l.peekFirst(), l.peekFirst().toString(), false);
             }
             //writeObjectToFile(l, "lfileex.ser");
         } else {
             //throw new InvalidBTreeStateException("Not yet implemented");
             for(long i = from; i < to; i++)
                 {l.add(i);}
-            int lsize = l.size();
 
             // randomize
             Collections.shuffle(l);
 
             // add them
             for (Long key : l)
-                {bt.insertKey(key, key.toString(), unique);}
+                {bt.insertKey(key, key.toString(), true);}
 
         }
 
@@ -109,7 +108,6 @@ public class Utilities {
             throws IOException, InvalidBTreeStateException, ClassNotFoundException {
 
         LinkedList<Long> l = loadListFromFile(filename);
-        int lsize = l.size();
         for (Long key : l)
             {bt.insertKey(key, key.toString(), unique);}
         return(l);
@@ -162,7 +160,7 @@ public class Utilities {
     public static class randQPR {
         static final long prime = 4294967291L;
         private long index;
-        private long inter_index;
+        private final long inter_index;
 
         public long permQPR(long x) {
             if(x >= prime) {return x;}

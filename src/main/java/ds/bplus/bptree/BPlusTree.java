@@ -294,10 +294,9 @@ public class BPlusTree {
      * @param n node to add the page
      * @param index this is only used in the case of a leaf
      * @param value value to push in the new page
-     * @return the new page reference
      * @throws IOException
      */
-    private TreeOverflow createOverflowPage(TreeNode n, int index, String value)
+    private void createOverflowPage(TreeNode n, int index, String value)
             throws IOException, InvalidBTreeStateException {
         TreeOverflow novf;
         if(n.isOverflow()) {
@@ -341,8 +340,6 @@ public class BPlusTree {
         bPerf.incrementTotalOverflowPages();
         // commit page counts
         updatePageIndexCounts(conf);
-        // finally return the page
-        return(novf);
     }
 
     /**
@@ -485,7 +482,7 @@ public class BPlusTree {
      * @throws IOException
      */
     private void parseOverflowPages(TreeLeaf l, int index, RangeResult res)
-            throws IOException, InvalidBTreeStateException {
+            throws IOException {
         TreeOverflow ovfPage = (TreeOverflow)readNode(l.getOverflowPointerAt(index));
         int icap = 0;
         while(icap < ovfPage.getCurrentCapacity()) {
@@ -621,7 +618,7 @@ public class BPlusTree {
      * @throws IOException, InvalidBTreeStateException
      */
     private SearchResult searchKey(TreeNode node, long key, boolean unique)
-            throws IOException, InvalidBTreeStateException {
+            throws IOException {
 
         int i = 0;
 
@@ -1550,9 +1547,9 @@ public class BPlusTree {
     /**
      * Extra validation on leaf pointers
      *
-     * @param prev
-     * @param split
-     * @param next
+     * @param prev previous leaf
+     * @param split current leaf (split node)
+     * @param next next leaf
      * @throws InvalidBTreeStateException
      */
     private void validateNeighbours(TreeLeaf prev, TreeLeaf split, TreeLeaf next)
@@ -2082,7 +2079,7 @@ public class BPlusTree {
 
     /**
      * Returns the total number of pages currently in use
-     * @return
+     * @return return the total number of pages
      */
     @SuppressWarnings("unused")
     public long getTotalTreePages()
@@ -2090,7 +2087,7 @@ public class BPlusTree {
 
     /**
      * Max index used (indicates the filesize)
-     * @return
+     * @return max number of pages that the file has
      */
     @SuppressWarnings("unused")
     public long getMaxPageNumber()
@@ -2164,7 +2161,7 @@ public class BPlusTree {
      * @return if it's time for conditioning
      */
     private boolean isTimeForConditioning()
-        {return(this.deleteIterations == conf.getConditionIter());}
+        {return(this.deleteIterations == conf.getConditionThreshold());}
 
     private long calculateActualPageIndex(long index)
         {return(conf.getPageSize() * (index+1));}

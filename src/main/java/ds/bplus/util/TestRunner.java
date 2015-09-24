@@ -9,7 +9,7 @@ import java.io.IOException;
  * Another wrapper class that makes running tests a bit easier.
  *
  */
-
+@SuppressWarnings("unused")
 public class TestRunner {
 
     /**
@@ -18,6 +18,7 @@ public class TestRunner {
      * @param bPerf performance class tied to a B+ Tree instance
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public static void runBench(BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         StandardInputRead sin = new StandardInputRead();
@@ -53,17 +54,18 @@ public class TestRunner {
      * @param bPerf performance class tied to a B+ Tree instance
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public static void runDefaultTrialsFast(BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         int trials = 20;
         int vmin = 1;
         int vmax = 99999;
-        boolean verbose = false;
-        boolean unique = false;
+        //boolean verbose = false;
+        //boolean unique = false;
         String val = "asdfasdfas";
         int qrange = 150;
         runDefaultTrials(trials, vmin, vmax, qrange, val,
-                unique, verbose, bPerf);
+                false, false, bPerf);
     }
 
     /**
@@ -77,17 +79,17 @@ public class TestRunner {
     public static void handleChoices(int choice, StandardInputRead sin,
                                      BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
-        boolean unique = true;
+        //boolean unique = true;
         switch(choice) {
             case 1: {
                 int trials = 20;
                 int vmin = 1;
                 int vmax = 99999;
-                boolean verbose = false;
+                //boolean verbose = false;
                 String val = "asdfasdfas";
                 int qrange = 150;
                 runDefaultTrials(trials, vmin, vmax, qrange, val,
-                        false, verbose, bPerf);
+                        false, false, bPerf);
                 break;
             }
             case 2: {
@@ -160,8 +162,7 @@ public class TestRunner {
                                    BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
-        String val = "1234567890";  // default value
-        int key = -1;
+        int key;
         // get a key to insert
         while((key = sin.readPositiveInt("Enter a valid key: ")) == -1)
             {System.out.println("Wrong key... try again");}
@@ -182,8 +183,7 @@ public class TestRunner {
                                  BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
-        String val = "1234567890";  // default value
-        int key = -1;
+        int key;
         // get a key to insert
         while((key = sin.readPositiveInt("Enter a valid key: ")) == -1)
             {System.out.println("Wrong key... try again");}
@@ -202,7 +202,6 @@ public class TestRunner {
                                      BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
-        String val = "1234567890";  // default value
         int minKey;
         int maxKey;
         // get a key to insert

@@ -11,7 +11,7 @@ import java.util.LinkedList;
 public class DeleteResult {
     private final long key;
     private final boolean found;
-    private LinkedList<String> values;
+    private final LinkedList<String> values;
 
     /**
      * Default constructor for single deletes

@@ -30,7 +30,7 @@ public class TrialsClass {
 
         int pageReads = 0;
         int pageWrites = 0;
-        int found = 0;
+        //int found = 0;
         int stats[];
 
         // trial loop

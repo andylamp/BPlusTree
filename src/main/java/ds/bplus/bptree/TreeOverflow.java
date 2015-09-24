@@ -16,7 +16,7 @@ public class TreeOverflow extends TreeNode {
 
     private long nextPagePointer;
     private long prevPagePointer;
-    private LinkedList<String> valueList;
+    private final LinkedList<String> valueList;
 
     /**
      * Constructor which takes into the node type as well as the
