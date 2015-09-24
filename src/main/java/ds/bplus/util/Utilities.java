@@ -3,6 +3,7 @@ package ds.bplus.util;
 import ds.bplus.bptree.BPlusTree;
 
 import java.io.*;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Random;
 
@@ -74,7 +75,18 @@ public class Utilities {
             }
             //writeObjectToFile(l, "lfileex.ser");
         } else {
-            throw new InvalidBTreeStateException("Not yet implemented");
+            //throw new InvalidBTreeStateException("Not yet implemented");
+            for(long i = from; i < to; i++)
+                {l.add(i);}
+            int lsize = l.size();
+
+            // randomize
+            Collections.shuffle(l);
+
+            // add them
+            for (Long key : l)
+                {bt.insertKey(key, key.toString(), unique);}
+
         }
 
         return(l);
@@ -91,21 +103,15 @@ public class Utilities {
      * @throws InvalidBTreeStateException
      * @throws ClassNotFoundException
      */
+    @SuppressWarnings("unused")
     public static LinkedList<Long> addToTreeFromList(String filename, boolean unique,
                                                      BPlusTree bt)
             throws IOException, InvalidBTreeStateException, ClassNotFoundException {
 
         LinkedList<Long> l = loadListFromFile(filename);
         int lsize = l.size();
-        if(!unique) {
-            for(int i = 0; i < lsize; i++) {
-                Long key = l.get(i);
-                bt.insertKey(key, key.toString(), unique);
-            }
-        } else {
-            throw new InvalidBTreeStateException("Not yet implemented");
-        }
-
+        for (Long key : l)
+            {bt.insertKey(key, key.toString(), unique);}
         return(l);
     }
 
@@ -116,6 +122,7 @@ public class Utilities {
      * @param filename filename to dump the object
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     public static void writeObjectToFile(LinkedList<Long> obj,
                                          String filename) throws IOException {
         System.out.println("Writing object to: " + filename);
@@ -142,5 +149,34 @@ public class Utilities {
         LinkedList<Long> l = (LinkedList<Long>)finStream.readObject();
         finStream.close();
         return l;
+    }
+
+
+    /**
+     * This is a pseudo random number generator for unique
+     * discreet values using quadratic prime residues.
+     *
+     * Taken from @preshing
+     *
+     */
+    public static class randQPR {
+        static final long prime = 4294967291L;
+        private long index;
+        private long inter_index;
+
+        public long permQPR(long x) {
+            if(x >= prime) {return x;}
+            long residue = (x * x) % prime;
+            return(x <= prime/2 ? residue : prime - residue);
+        }
+
+        public randQPR(long seed, long seedOffset) {
+            index = permQPR(permQPR(seed) + 0x682f0161L);
+            inter_index = permQPR(permQPR(seedOffset) + 0x46790905L);
+        }
+
+        public long next() {
+            return (permQPR(permQPR(index++) + inter_index) ^ 0x5bf03635L);
+        }
     }
 }

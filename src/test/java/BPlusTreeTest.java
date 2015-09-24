@@ -15,16 +15,12 @@ import java.util.LinkedList;
 * @version 1.0 
 */ 
 public class BPlusTreeTest {
-
-   private int keyPoolLength;
    private String satelliteValue;
    private boolean uniqueEntries;
    private boolean verboseResults;
    private int startKey;
    private int endKey;
    private int totalKeys;
-
-   private boolean fastTrials;
    private boolean recreateTree;
 
    private BPlusConfiguration btConf256;
@@ -47,11 +43,12 @@ public class BPlusTreeTest {
       endKey = 10000;
       totalKeys = endKey - startKey;
       satelliteValue = " ";
+
    }
 
    @After
    public void after() throws Exception {
-      System.out.println("After test");
+      //System.out.println("After test");
    }
 
    /**
@@ -129,6 +126,21 @@ public class BPlusTreeTest {
          {throw new Exception("BTree with page size: 2048 failed to find all keys");}
    }
 
+    /**
+     *
+     * This test loads up sequentially a massive key list
+     * (10^5) onto trees of the following degrees:
+     *
+     *    - Page sizes: 256, 1024 (1Kb), 2048 (2Kb)
+     *
+     * with the following (Key, Value) settings:
+     *
+     *    - Satellite data size: 20 Bytes each entry
+     *    - Key size: 8 bytes
+     *
+     * In the end they are deleted as well.
+     * @throws Exception
+     */
     @Test
     public void testMassSequentialInsertionsWithDelete() throws Exception {
       uniqueEntries = true;
@@ -204,8 +216,77 @@ public class BPlusTreeTest {
     */
    @Test
    public void testMassRandomUniqueInsertions() throws Exception {
+       uniqueEntries = true;
+       verboseResults = false;
+       recreateTree = true;
+
+       LinkedList<Long> bt256val, bt1024val, bt2048val;
 
 
+       // initialize the configuration
+       btConf256 = new BPlusConfiguration(256);
+       btConf1024 = new BPlusConfiguration(1024);
+       btConf2048 = new BPlusConfiguration(2048);
+
+       // set up the the counters for each tree
+       bPerf256 = new BPlusTreePerformanceCounter(true);
+       bPerf1024 = new BPlusTreePerformanceCounter(true);
+       bPerf2048 = new BPlusTreePerformanceCounter(true);
+
+       // finally setup the tree instances
+       bt256 = new BPlusTree(btConf256, recreateTree ? "rw+" : "rw",
+               "tree256.bin", bPerf256);
+       bt1024 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
+               "tree1024.bin", bPerf1024);
+       bt2048 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
+               "tree2048.bin", bPerf2048);
+
+       // randomly add non-unique insertions
+       bt256val = Utilities.fuzzyAddToTree(startKey, endKey,
+               uniqueEntries, bt256);
+
+       bt1024val = Utilities.fuzzyAddToTree(startKey, endKey,
+               uniqueEntries, bt1024);
+       bt2048val = Utilities.fuzzyAddToTree(startKey, endKey,
+               uniqueEntries, bt2048);
+
+       // now search
+       int found_cnt256 = 0;
+       int found_cnt1024 = 0;
+       int found_cnt2048 = 0;
+
+       int[] res256, res1024, res2048;
+
+       System.out.println("\n--> Dataset size: " + endKey + "\n");
+       for(int i = startKey; i < endKey; i++) {
+           res256 = bPerf256.searchIO(bt256val.pop(), uniqueEntries,
+                   verboseResults);
+           res1024 = bPerf1024.searchIO(bt1024val.pop(), uniqueEntries,
+                   verboseResults);
+           res2048 = bPerf2048.searchIO(bt2048val.pop(), uniqueEntries,
+                   verboseResults);
+
+           if(res256[8] == 1) {found_cnt256++;}
+           if(res1024[8] == 1) {found_cnt1024++;}
+           if(res2048[8] == 1) {found_cnt2048++;}
+       }
+
+       System.out.println("Total pages for bt256 in the end: " +
+               bt256.getTotalTreePages());
+       System.out.println("Total pages for bt1024 in the end: " +
+               bt1024.getTotalTreePages());
+       System.out.println("Total pages for bt2048 in the end: " +
+               bt2048.getTotalTreePages());
+
+       // check result numbers
+       if(found_cnt256 != totalKeys)
+          {throw new Exception("BTree with page size: 256 failed to find all keys");}
+
+       if(found_cnt1024 != totalKeys)
+          {throw new Exception("BTree with page size: 1024 failed to find all keys");}
+
+       if(found_cnt2048 != totalKeys)
+          {throw new Exception("BTree with page size: 2048 failed to find all keys");}
    }
 
    /**

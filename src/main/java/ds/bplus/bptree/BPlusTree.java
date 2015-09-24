@@ -17,7 +17,8 @@ public class BPlusTree {
     private BPlusConfiguration conf;
     private LinkedList<Long> freeSlotPool;
     private long totalTreePages;
-    private long maxPageIndex;
+    private long maxPageNumber;
+    private int deleteIterations;
     private BPlusTreePerformanceCounter bPerf = null;
 
     /**
@@ -1902,9 +1903,9 @@ public class BPlusTree {
 
 
         // read the max page offset
-        maxPageIndex = r.readLong();
+        maxPageNumber = r.readLong();
 
-        if(maxPageIndex < 0 || (totalTreePages > 0 && maxPageIndex == 0))
+        if(maxPageNumber < 0 || (totalTreePages > 0 && maxPageNumber == 0))
             {throw new InvalidBTreeStateException("Invalid max page offset");}
 
         // read the root index
@@ -1938,7 +1939,7 @@ public class BPlusTree {
         treeFile.writeInt(conf.getEntrySize());
         treeFile.writeInt(conf.getKeySize());
         treeFile.writeLong(totalTreePages);
-        treeFile.writeLong(maxPageIndex);
+        treeFile.writeLong(maxPageNumber);
         treeFile.writeLong(root.getPageIndex());
     }
 
@@ -2031,12 +2032,13 @@ public class BPlusTree {
         // if not pad to the end of the file.
         else {
 
-            if(maxPageIndex <= totalTreePages)
-                {maxPageIndex++;}
+            if(maxPageNumber <= totalTreePages)
+                {
+                    maxPageNumber++;}
 
             totalTreePages++;
 
-            index = conf.getPageSize() * (maxPageIndex + 1);
+            index = conf.getPageSize() * (maxPageNumber + 1);
             return(index);
         }
     }
@@ -2050,7 +2052,7 @@ public class BPlusTree {
     private void updatePageIndexCounts(BPlusConfiguration conf) throws IOException {
         treeFile.seek(conf.getPageCountOffset());
         treeFile.writeLong(totalTreePages);
-        treeFile.writeLong(maxPageIndex);
+        treeFile.writeLong(maxPageNumber);
     }
 
     /**
@@ -2091,8 +2093,8 @@ public class BPlusTree {
      * @return
      */
     @SuppressWarnings("unused")
-    public long getMaxPageIndex()
-        {return maxPageIndex;}
+    public long getMaxPageNumber()
+        {return maxPageNumber;}
 
     @SuppressWarnings("unused")
     public void printTree() throws IOException {
@@ -2116,7 +2118,8 @@ public class BPlusTree {
      */
     private void initializeCommon() {
         this.totalTreePages = 0L;
-        this.maxPageIndex = 0L;
+        this.maxPageNumber = 0L;
+        this.deleteIterations = 0;
         this.freeSlotPool = new LinkedList<>();
         this.bPerf.setBTree(this);
     }
@@ -2131,13 +2134,40 @@ public class BPlusTree {
             throws IOException {
         this.freeSlotPool.add(pageIndex);
         this.totalTreePages--;
-        if(sort) {
+        this.deleteIterations++;
+        if(sort || isTimeForConditioning()) {
+            this.deleteIterations = 0;
             Collections.sort(freeSlotPool);
-            //TODO Condition the file
+            long lastPos = freeSlotPool.getLast();
+            while(lastPos == calculateActualPageIndex(this.maxPageNumber)) {
+                this.maxPageNumber--;
+                freeSlotPool.removeLast();
+                lastPos = freeSlotPool.getLast();
+            }
+
+            // set the length to be max page plus one
+            treeFile.setLength(calculateActualPageIndex(this.maxPageNumber + 1));
+
+            //TODO Commit file needs a bit more work as in low page
+            //      sizes a case arises that the lookup-page pool is much
+            //      larger than the available spots.
+            //
+            //
             // commit the lookup page to the file
-            commitLookupPage();
+            //commitLookupPage();
         }
     }
+
+    /**
+     * Check if we have to condition the file
+     *
+     * @return if it's time for conditioning
+     */
+    private boolean isTimeForConditioning()
+        {return(this.deleteIterations == conf.getConditionIter());}
+
+    private long calculateActualPageIndex(long index)
+        {return(conf.getPageSize() * (index+1));}
 
     /**
      * Helper to print the node

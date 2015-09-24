@@ -19,6 +19,7 @@ public class BPlusConfiguration {
     private int leafNodeDegree;             // leaf node degree
     private int overflowPageDegree;         // overflow page degree
     private int lookupPageSize;             // look up page size
+    private int conditionIter;              // iterations to perform conditioning
 
     /**
      *
@@ -35,6 +36,7 @@ public class BPlusConfiguration {
         this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
         this.lookupPageSize = pageSize - headerSize;    // lookup page size
+        this.conditionIter = 1000;                      // iterations for conditioning
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         // leaf & overflow have the same header size.
@@ -56,7 +58,8 @@ public class BPlusConfiguration {
                 (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
         this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
-        this.lookupPageSize = pageSize - headerSize;  // lookup page size
+        this.lookupPageSize = pageSize - headerSize;        // lookup page size
+        this.conditionIter = 1000;                          // iterations for conditioning
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         // leaf & overflow have the same header size.
@@ -70,7 +73,7 @@ public class BPlusConfiguration {
      *
      * @param pageSize page size (default is 1024 bytes)
      * @param keySize key size (default is long [8 bytes])
-     * @param entrySize satellite data (default is 10 bytes)
+     * @param entrySize satellite data (default is 20 bytes)
      */
     public BPlusConfiguration(int pageSize, int keySize,
                               int entrySize) {
@@ -81,7 +84,36 @@ public class BPlusConfiguration {
                 (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
         this.internalNodeHeaderSize = 6;
         this.leafHeaderSize = 22;
-        this.lookupPageSize = pageSize - headerSize;  // lookup page size
+        this.lookupPageSize = pageSize - headerSize;        // lookup page size
+        this.conditionIter = 1000;                          // iterations for conditioning
+        // now calculate the tree degree
+        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
+        // leaf & overflow have the same header size.
+        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
+        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
+        checkDegreeValidity();
+    }
+
+
+    /**
+     * Overloaded constructor
+     *
+     * @param pageSize page size (default is 1024 bytes)
+     * @param keySize key size (default is long [8 bytes])
+     * @param entrySize satellite data (default is 20 bytes)
+     * @param conditionIter
+     */
+    public BPlusConfiguration(int pageSize, int keySize,
+                              int entrySize, int conditionIter) {
+        this.pageSize = pageSize;                           // page size (in bytes)
+        this.entrySize = entrySize;                         // entry size (in bytes)
+        this.keySize = keySize;                             // key size (in bytes)
+        this.headerSize =                                   // header size in bytes
+                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
+        this.internalNodeHeaderSize = 6;
+        this.leafHeaderSize = 22;
+        this.lookupPageSize = pageSize - headerSize;        // lookup page size
+        this.conditionIter = conditionIter;                 // iterations for conditioning
         // now calculate the tree degree
         this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
         // leaf & overflow have the same header size.
@@ -151,6 +183,12 @@ public class BPlusConfiguration {
 
     public long getLookupPageOffset()
         {return(pageSize-lookupPageSize);}
+
+    public int getConditionIter()
+        {return(conditionIter);}
+
+    public void setConditionIter(int conditionIter)
+        {this.conditionIter = conditionIter;}
 
     public int getHeaderSize()
         {return(headerSize);}
