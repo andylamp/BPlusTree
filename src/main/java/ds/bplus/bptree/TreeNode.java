@@ -15,10 +15,10 @@ import java.util.LinkedList;
  */
 
 public abstract class TreeNode {
+    protected final LinkedList<Long> keyArray;  // key array
     private TreeNodeType nodeType;              // actual node type
     private long pageIndex;                     // node page index
     private int currentCapacity;                // current capacity
-    protected final LinkedList<Long> keyArray;  // key array
     private boolean beingDeleted;               // deleted flag
 
 
@@ -78,6 +78,10 @@ public abstract class TreeNode {
     public int getCurrentCapacity()
         {return(currentCapacity);}
 
+    public void setCurrentCapacity(int newCap) {
+        currentCapacity = newCap;
+    }
+
     public void incrementCapacity(BPlusConfiguration conf) throws InvalidBTreeStateException {
         currentCapacity++;
         validateNodeCapacityLimits(conf);
@@ -88,9 +92,6 @@ public abstract class TreeNode {
         currentCapacity--;
         validateNodeCapacityLimits(conf);
     }
-
-    public void setCurrentCapacity(int newCap)
-        {currentCapacity = newCap;}
 
     private void validateNodeCapacityLimits(BPlusConfiguration conf)
             throws InvalidBTreeStateException {
@@ -106,6 +107,15 @@ public abstract class TreeNode {
                         "allowed capacity at root");
             }
         } else {
+            if (isLookupPageOverflowNode()) {
+                if (beingDeleted && currentCapacity < 0) {
+                    throw new InvalidBTreeStateException("Cannot have less than " +
+                            0 + " elements in a lookup overflow node when deleting it");
+                } else if (currentCapacity > conf.getMaxLookupPageOverflowCapacity()) {
+                    throw new InvalidBTreeStateException("Exceeded lookup overflow node " +
+                            "allowed capacity (node)");
+                }
+            }
             if(isOverflow()) {
                 if(beingDeleted && currentCapacity < 0) {
                     throw new InvalidBTreeStateException("Cannot have less than " +
@@ -117,7 +127,6 @@ public abstract class TreeNode {
                 }
             }
             else if(isLeaf()) {
-                //conf.getMinLeafNodeCapacity()
                 if(beingDeleted && currentCapacity < 0) {
                     throw new InvalidBTreeStateException("Cannot have less than " +
                             0 + " elements in a leaf node when deleting it");
@@ -130,7 +139,6 @@ public abstract class TreeNode {
                             "allowed capacity (node)");
                 }
             } else if(isInternalNode()) {
-                //conf.getMinInternalNodeCapacity()
                 if(beingDeleted && currentCapacity < 0) {
                     throw new InvalidBTreeStateException("Cannot have less than " +
                             0 + " elements in an internal node");
@@ -148,11 +156,12 @@ public abstract class TreeNode {
         }
     }
 
-    public void setBeingDeleted(boolean beingDeleted)
-        {this.beingDeleted = beingDeleted;}
-
     public boolean getBeingDeleted()
         {return beingDeleted;}
+
+    public void setBeingDeleted(boolean beingDeleted) {
+        this.beingDeleted = beingDeleted;
+    }
 
     /**
      * Check if the node is empty (and *definitely* needs merging)
@@ -169,7 +178,7 @@ public abstract class TreeNode {
      * @return true if the node is an overflow page, false if it's not
      */
     public boolean isOverflow() {
-        return(nodeType == TreeNodeType.TREE_LEAF_OVERFLOW);
+        return (nodeType == TreeNodeType.TREE_LEAF_OVERFLOW);
     }
 
     /**
@@ -204,24 +213,12 @@ public abstract class TreeNode {
     }
 
     /**
-     * Explicitly set the node type
+     * Check if the node in question is a lookup page overflow node
      *
-     * @param nodeType set the node type
+     * @return true if the node is a lookup page overflow node, false otherwise
      */
-    @SuppressWarnings("all")
-    public void setNodeType(TreeNodeType nodeType) {
-        // check if we presently are a leaf
-        if(isLeaf()) {
-            this.nodeType = nodeType;
-            if(isInternalNode())
-                {throw new IllegalArgumentException("Cannot convert Leaf to Internal Node");}
-        }
-        // it must be an internal node
-        else {
-            this.nodeType = nodeType;
-            if(isLeaf())
-                {throw new IllegalArgumentException("Cannot convert Internal Node to Leaf");}
-        }
+    public boolean isLookupPageOverflowNode() {
+        return (nodeType == TreeNodeType.TREE_LOOKUP_OVERFLOW);
     }
 
     /**
@@ -229,8 +226,32 @@ public abstract class TreeNode {
      *
      * @return the current node type
      */
-    public TreeNodeType getNodeType()
-        {return(nodeType);}
+    public TreeNodeType getNodeType() {
+        return (nodeType);
+    }
+
+    /**
+     * Explicitly set the node type
+     *
+     * @param nodeType set the node type
+     */
+    @SuppressWarnings("all")
+    public void setNodeType(TreeNodeType nodeType) {
+        // check if we presently are a leaf
+        if (isLeaf()) {
+            this.nodeType = nodeType;
+            if (isInternalNode()) {
+                throw new IllegalArgumentException("Cannot convert Leaf to Internal Node");
+            }
+        }
+        // it must be an internal node
+        else {
+            this.nodeType = nodeType;
+            if (isLeaf()) {
+                throw new IllegalArgumentException("Cannot convert Internal Node to Leaf");
+            }
+        }
+    }
 
     /**
      * Get the specific key at position indicated by <code>index</code>
@@ -359,6 +380,11 @@ public abstract class TreeNode {
 
             case TREE_LEAF_OVERFLOW:    // LEAF OVERFLOW NODE
                 {return(5);}
+
+            case TREE_LOOKUP_OVERFLOW:  // TREE LOOKUP OVERFLOW
+            {
+                return (6);
+            }
 
             default: {
                 throw new InvalidPropertiesFormatException("Unknown " +

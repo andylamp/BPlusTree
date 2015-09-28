@@ -9,17 +9,19 @@ package ds.bplus.bptree;
  */
 public class BPlusConfiguration {
 
-    private final int pageSize;                 // page size (in bytes)
-    private final int keySize;                  // key size (in bytes)
-    private final int entrySize;                // entry size (in bytes)
-    private final int treeDegree;               // tree degree (internal node degree)
-    private final int headerSize;               // header size (in bytes)
-    private final int leafHeaderSize;           // leaf node header size (in bytes)
-    private final int internalNodeHeaderSize;   // internal node header size (in bytes)
-    private final int leafNodeDegree;           // leaf node degree
-    private final int overflowPageDegree;       // overflow page degree
-    private final int lookupPageSize;           // look up page size
-    private int conditionThreshold;             // iterations to perform conditioning
+    private int pageSize;           // page size (in bytes)
+    private int keySize;            // key size (in bytes)
+    private int entrySize;          // entry size (in bytes)
+    private int treeDegree;               // tree degree (internal node degree)
+    private int headerSize;               // header size (in bytes)
+    private int leafHeaderSize;           // leaf node header size (in bytes)
+    private int internalNodeHeaderSize;   // internal node header size (in bytes)
+    private int lookupOverflowHeaderSize; // lookup overflow page header size
+    private int lookupOverflowPageDegree; // lookup overflow page degree
+    private int leafNodeDegree;           // leaf node degree
+    private int overflowPageDegree;       // overflow page degree
+    private int lookupPageSize;           // look up page size
+    private int conditionThreshold;       // iterations to perform conditioning
 
     /**
      *
@@ -28,21 +30,8 @@ public class BPlusConfiguration {
      *
      */
     public BPlusConfiguration() {
-        this.pageSize = 1024;                           // page size (in bytes)
-        this.entrySize = 20;                            // each entry size (in bytes)
-        this.keySize = 8;                               // key size (in bytes)
-        this.headerSize =                               // header size in bytes
-                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
-        this.internalNodeHeaderSize = 6;
-        this.leafHeaderSize = 22;
-        this.lookupPageSize = pageSize - headerSize;    // lookup page size
-        this.conditionThreshold = 1000;                      // iterations for conditioning
-        // now calculate the tree degree
-        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
-        // leaf & overflow have the same header size.
-        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
-        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
-        checkDegreeValidity();
+        basicParams(1024, 8, 20);
+        initializeCommon(pageSize, keySize, entrySize, 1000);
     }
 
     /**
@@ -51,21 +40,8 @@ public class BPlusConfiguration {
      * @param pageSize page size (in bytes)
      */
     public BPlusConfiguration(int pageSize) {
-        this.pageSize = pageSize;                           // page size (in bytes)
-        this.entrySize = 20;                                // entry size (in bytes)
-        this.keySize = 8;                                   // key size (in bytes)
-        this.headerSize =                                   // header size in bytes
-                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
-        this.internalNodeHeaderSize = 6;
-        this.leafHeaderSize = 22;
-        this.lookupPageSize = pageSize - headerSize;        // lookup page size
-        this.conditionThreshold = 1000;                          // iterations for conditioning
-        // now calculate the tree degree
-        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
-        // leaf & overflow have the same header size.
-        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
-        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
-        checkDegreeValidity();
+        basicParams(pageSize, 8, 20);
+        initializeCommon(pageSize, keySize, entrySize, 1000);
     }
 
     /**
@@ -77,42 +53,53 @@ public class BPlusConfiguration {
      */
     public BPlusConfiguration(int pageSize, int keySize,
                               int entrySize) {
-        this.pageSize = pageSize;                           // page size (in bytes)
-        this.entrySize = entrySize;                         // entry size (in bytes)
-        this.keySize = keySize;                             // key size (in bytes)
-        this.headerSize =                                   // header size in bytes
-                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
-        this.internalNodeHeaderSize = 6;
-        this.leafHeaderSize = 22;
-        this.lookupPageSize = pageSize - headerSize;        // lookup page size
-        this.conditionThreshold = 1000;                          // iterations for conditioning
-        // now calculate the tree degree
-        this.treeDegree = calculateDegree(2*keySize, internalNodeHeaderSize);
-        // leaf & overflow have the same header size.
-        this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
-        this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
-        checkDegreeValidity();
+        basicParams(pageSize, keySize, entrySize);
+        initializeCommon(pageSize, keySize, entrySize, 1000);
     }
-
 
     /**
      * Overloaded constructor
      *
-     * @param pageSize page size (default is 1024 bytes)
-     * @param keySize key size (default is long [8 bytes])
-     * @param entrySize satellite data (default is 20 bytes)
+     * @param pageSize           page size (default is 1024 bytes)
+     * @param keySize            key size (default is long [8 bytes])
+     * @param entrySize          satellite data (default is 20 bytes)
      * @param conditionThreshold threshold to perform file conditioning
      */
     @SuppressWarnings("unused")
     public BPlusConfiguration(int pageSize, int keySize,
                               int entrySize, int conditionThreshold) {
-        this.pageSize = pageSize;                           // page size (in bytes)
-        this.entrySize = entrySize;                         // entry size (in bytes)
-        this.keySize = keySize;                             // key size (in bytes)
+        basicParams(pageSize, keySize, entrySize);
+        initializeCommon(pageSize, keySize, entrySize, conditionThreshold);
+    }
+
+    /**
+     * Set up the basic parameters of the tree
+     *
+     * @param pageSize  page size (default is 1024 bytes)
+     * @param keySize   key size (default is long [8 bytes])
+     * @param entrySize satellite data (default is 20 bytes)
+     */
+    private void basicParams(int pageSize, int keySize, int entrySize) {
+        this.pageSize = pageSize;   // page size (in bytes)
+        this.entrySize = entrySize; // entry size (in bytes)
+        this.keySize = keySize;     // key size (in bytes)
+    }
+
+    /**
+     * Common method to initialize constructor parameters
+     *
+     * @param pageSize page size (default is 1024 bytes)
+     * @param keySize key size (default is long [8 bytes])
+     * @param entrySize satellite data (default is 20 bytes)
+     * @param conditionThreshold the number of iterations before file conditioning
+     */
+    private void initializeCommon(int pageSize, int keySize,
+                                  int entrySize, int conditionThreshold) {
         this.headerSize =                                   // header size in bytes
-                (Integer.SIZE * 4 + 3 * Long.SIZE)/8;
-        this.internalNodeHeaderSize = 6;
-        this.leafHeaderSize = 22;
+                (Integer.SIZE * 4 + 4 * Long.SIZE) / 8;
+        this.internalNodeHeaderSize = (Short.SIZE + Integer.SIZE) / 8; // 6 bytes
+        this.leafHeaderSize = (Short.SIZE + 2 * Long.SIZE + Integer.SIZE) / 8; // 22 bytes
+        this.lookupOverflowHeaderSize = 14;
         this.lookupPageSize = pageSize - headerSize;        // lookup page size
         this.conditionThreshold = conditionThreshold;       // iterations for conditioning
         // now calculate the tree degree
@@ -120,6 +107,8 @@ public class BPlusConfiguration {
         // leaf & overflow have the same header size.
         this.leafNodeDegree = calculateDegree((2*keySize)+entrySize, leafHeaderSize);
         this.overflowPageDegree = calculateDegree(entrySize, leafHeaderSize);
+        this.lookupOverflowPageDegree = calculateDegree(keySize,
+                lookupOverflowHeaderSize);
         checkDegreeValidity();
     }
 
@@ -139,15 +128,21 @@ public class BPlusConfiguration {
      *
      */
     private void checkDegreeValidity() {
-        if(treeDegree < 2 || leafNodeDegree < 2 || overflowPageDegree < 2)
+        if (treeDegree < 2 || leafNodeDegree < 2 ||
+                overflowPageDegree < 2 || lookupOverflowPageDegree < 2)
             {throw new IllegalArgumentException("Can't have a degree < 2");}
     }
 
     public int getPageSize()
         {return pageSize;}
 
-    public int getEntrySize()
-        {return entrySize;}
+    public int getEntrySize() {
+        return entrySize;
+    }
+
+    public int getFirstLookupPageElements() {
+        return lookupPageSize / keySize;
+    }
 
     public int getTreeDegree()
         {return treeDegree;}
@@ -161,8 +156,13 @@ public class BPlusConfiguration {
     public int getMaxLeafNodeCapacity()
         {return((2*leafNodeDegree) - 1);}
 
-    public int getMaxOverflowNodeCapacity()
-        {return((2*overflowPageDegree)-1);}
+    public int getMaxOverflowNodeCapacity() {
+        return ((2 * overflowPageDegree) - 1);
+    }
+
+    public int getMaxLookupPageOverflowCapacity() {
+        return ((2 * lookupOverflowPageDegree) - 1);
+    }
 
     public int getMinLeafNodeCapacity()
         {return(leafNodeDegree-1);}
@@ -194,8 +194,13 @@ public class BPlusConfiguration {
     public int getHeaderSize()
         {return(headerSize);}
 
-    public int getPageCountOffset()
-        {return(headerSize-16);}
+    public int getPageCountOffset() {
+        return (headerSize - 16);
+    }
+
+    public int getLookupOverflowHeaderSize() {
+        return (lookupOverflowHeaderSize);
+    }
 
     public void printConfiguration() {
         System.out.println("\n\nPrinting B+ Tree configuration\n");
@@ -219,6 +224,10 @@ public class BPlusConfiguration {
 
         System.out.println("\nOverflow page Degree: " +
                 getOverflowPageDegree() +
-                "\n\tExpected cap: " + (2*getOverflowPageDegree()));
+                "\n\tExpected cap: " + getMaxOverflowNodeCapacity());
+
+        System.out.println("\nLookup page overflow Degree" +
+                getOverflowPageDegree() +
+                "\n\tExpected cap: " + getMaxInternalNodeCapacity());
     }
 }

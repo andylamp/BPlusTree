@@ -65,11 +65,14 @@ public class TrialsClass {
             throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;
+        Long key;
         int stats[];
 
         // trial loop
         for(int i = 0; i < trials; i++) {
-            stats = bPerf.insertIO(Utilities.randInt(rmin, rmax), value, unique, verbose);
+            key = (long) Utilities.randInt(rmin, rmax);
+            stats = bPerf.insertIO(key,
+                    value == null ? key.toString() : value, unique, verbose);
             pageReads += stats[0];
             pageWrites += stats[1];
         }

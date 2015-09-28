@@ -40,7 +40,7 @@ public class BPlusTreeTest {
       System.out.println("Before test");
 
       startKey = 0;
-      endKey = 10000;
+       endKey = 4000;
       totalKeys = endKey - startKey;
       satelliteValue = " ";
 
@@ -49,6 +49,9 @@ public class BPlusTreeTest {
    @After
    public void after() throws Exception {
       //System.out.println("After test");
+       bt256.commitTree();
+       //bt1024.commitTree();
+       //bt2048.commitTree();
    }
 
    /**
@@ -307,7 +310,7 @@ public class BPlusTreeTest {
    public void testMassRandomInsertionsWithSearch() throws Exception {
       uniqueEntries = false;
       verboseResults = false;
-      recreateTree = true;
+       recreateTree = false;
 
       LinkedList<Long> bt256val, bt1024val, bt2048val;
 
@@ -411,7 +414,7 @@ public class BPlusTreeTest {
    public void testMassRandomInsertionsWithDelete() throws Exception {
       uniqueEntries = false;
       verboseResults = false;
-      recreateTree = true;
+       recreateTree = false;
 
       LinkedList<Long> bt256val, bt1024val, bt2048val;
 
@@ -431,7 +434,7 @@ public class BPlusTreeTest {
               "tree256.bin", bPerf256);
       bt1024 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
               "tree1024.bin", bPerf1024);
-      bt2048 = new BPlusTree(btConf1024, recreateTree ? "rw+" : "rw",
+       bt2048 = new BPlusTree(btConf2048, recreateTree ? "rw+" : "rw",
               "tree2048.bin", bPerf2048);
 
       // randomly add non-unique insertions
@@ -479,16 +482,6 @@ public class BPlusTreeTest {
       if(found_cnt2048 != totalKeys)
          {throw new Exception("BTree with page size: 2048 failed to delete all keys");}
 
-   }
-
-   /**
-   *
-   * Method: rangeSearch(long minKey, long maxKey, boolean unique)
-   *
-   */
-   @Test
-   public void testRangeSearch() throws Exception {
-   //TODO: Test goes here...
    }
 
 }

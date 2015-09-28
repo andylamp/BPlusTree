@@ -57,14 +57,14 @@ public class TestRunner {
     @SuppressWarnings("unused")
     public static void runDefaultTrialsFast(BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
-        int trials = 20;
+        int trials = 2000;
         int vmin = 1;
         int vmax = 99999;
         //boolean verbose = false;
         //boolean unique = false;
-        String val = "asdfasdfas";
+        //String val = "asdfasdfas";
         int qrange = 150;
-        runDefaultTrials(trials, vmin, vmax, qrange, val,
+        runDefaultTrials(trials, vmin, vmax, qrange, null,
                 false, false, bPerf);
     }
 
@@ -82,13 +82,13 @@ public class TestRunner {
         //boolean unique = true;
         switch(choice) {
             case 1: {
-                int trials = 20;
+                int trials = 2000;
                 int vmin = 1;
                 int vmax = 99999;
                 //boolean verbose = false;
-                String val = "asdfasdfas";
+                //String val = "asdfasdfas";
                 int qrange = 150;
-                runDefaultTrials(trials, vmin, vmax, qrange, val,
+                runDefaultTrials(trials, vmin, vmax, qrange, null,
                         false, false, bPerf);
                 break;
             }
@@ -234,8 +234,8 @@ public class TestRunner {
                                         String val, boolean unique, boolean verbose,
                                         BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
-        TrialsClass.runSearchTrial(trials, vmin, vmax, unique, bPerf, verbose);
         TrialsClass.runInsertTrial(trials, vmin, vmax, val, unique, bPerf, verbose);
+        TrialsClass.runSearchTrial(trials, vmin, vmax, unique, bPerf, verbose);
         TrialsClass.runDeletionTrials(trials, vmin, vmax, unique, bPerf, verbose);
         TrialsClass.runRangeQueryTrial(trials, vmin, vmax, qrange, unique, bPerf, verbose);
     }

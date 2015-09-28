@@ -8,6 +8,7 @@ import java.io.RandomAccessFile;
 import java.util.Collections;
 import java.util.InvalidPropertiesFormatException;
 import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 public class BPlusTree {
 
@@ -16,6 +17,8 @@ public class BPlusTree {
     private RandomAccessFile treeFile;
     private BPlusConfiguration conf;
     private LinkedList<Long> freeSlotPool;
+    private LinkedList<Long> lookupPagesPool;
+    private long firstPoolNextPointer;
     private long totalTreePages;
     private long maxPageNumber;
     private int deleteIterations;
@@ -394,7 +397,9 @@ public class BPlusTree {
                 // available space, if it does all is good; otherwise we
                 // pull the next overflow page or we create another one.
                 else {
-                    TreeOverflow ovf = (TreeOverflow)readNode(l.getOverflowPointerAt(iadj));
+
+                    TreeOverflow ovf =
+                            (TreeOverflow) readNode(l.getOverflowPointerAt(iadj));
 
                     while(ovf.isFull(conf)) {
                         // check if we have more, if not create
@@ -460,6 +465,9 @@ public class BPlusTree {
 
             TreeInternalNode inode = (TreeInternalNode)n;
             aChild = readNode(inode.getPointerAt(i));
+            if (aChild.isOverflow() || aChild.isLookupPageOverflowNode()) {
+                throw new InvalidBTreeStateException("aChild can't be overflow node");
+            }
             TreeNode nextAfterAChild = null;
             if(aChild.isFull(conf)) {
                 splitTreeNode(inode, i);
@@ -1305,14 +1313,16 @@ public class BPlusTree {
         // linked-list; hence when we merge/remove a node we have
         // to make sure those links are consistent
         else if(mnode.isLeaf()) {
-            return handleLeafNodeRedistributionOrMerging(mnode, parent, parentPointerIndex, parentKeyIndex);
+            return handleLeafNodeRedistributionOrMerging(mnode, parent,
+                    parentPointerIndex, parentKeyIndex);
         }
 
         // we have to merge internal nodes, this is the somewhat easy
         // case, since we do not have to update any more links than the
         // currently pulled nodes.
         else if(mnode.isInternalNode()) {
-            return handleInternalNodeRedistributionOrMerging(mnode, parent, parentPointerIndex, parentKeyIndex);
+            return handleInternalNodeRedistributionOrMerging(mnode, parent,
+                    parentPointerIndex, parentKeyIndex);
         } else
             {throw new IllegalStateException("Read unknown or overflow page while merging");}
 
@@ -1715,6 +1725,10 @@ public class BPlusTree {
             case 5:         // LEAF OVERFLOW NODE
                 {return(TreeNodeType.TREE_LEAF_OVERFLOW);}
 
+            case 6:         // TREE_LOOKUP_OVERFLOW
+            {
+                return (TreeNodeType.TREE_LOOKUP_OVERFLOW);
+            }
             default: {
                 throw new InvalidPropertiesFormatException("Unknown " +
                         "node value read; file possibly corrupt?");
@@ -1729,7 +1743,6 @@ public class BPlusTree {
      * @param index index of the page
      * @return the calculated file offset to be fed in seek.
      */
-    @SuppressWarnings("unused")
     private long calculatePageOffset(long index)
         {return(conf.getPageSize()*(index+1));}
 
@@ -1740,13 +1753,134 @@ public class BPlusTree {
      *
      * @throws IOException
      */
-    private void commitLookupPage() throws IOException {
-        // seek to the position we have to start to write
-        treeFile.seek(conf.getHeaderSize());
+    private void commitLookupPage() throws IOException, InvalidBTreeStateException {
+
+        int i, cap = lookupPagesPool.size();
+        // push all the existing lookup pages to the free pool
+        for (i = 0; i < cap; i++) {
+            freeSlotPool.add(lookupPagesPool.removeFirst());
+        }
+        // condition the file first
+        conditionFileLength();
+
+        // check if we need more than one lookup page
+        if (freeSlotPool.size() <= conf.getFirstLookupPageElements()) {
+            System.out.println(" -- We only need a singular page for " +
+                    "overflow values" +
+                    "\n\tInitial page capacity: " + freeSlotPool.size());
+
+            // reset the pointer and commit it
+            // seek to the position we have to start to write
+            treeFile.seek(conf.getHeaderSize() - 8 /* 1 less position */);
+            this.firstPoolNextPointer = -1L;
+            treeFile.writeLong(this.firstPoolNextPointer);
+            int flpSz = freeSlotPool.size();
+            // now write
+            if (flpSz > 0) {
+                for (Long fpIndex : freeSlotPool) {
+                    treeFile.writeLong(fpIndex);
+                }
+
+            }
+            // if we have less elements than max write -1L
+            // at the end to indicate termination of page
+            // but only for the first "page" (after the
+            // file header).
+            if (flpSz < conf.getFirstLookupPageElements()) {
+                treeFile.writeLong(-1L);
+            }
+        } else {
+            int written = 0;
+            // check how many pages we need
+            int rest = (freeSlotPool.size() - conf.getFirstLookupPageElements()),
+                    // go past the header chunk
+                    poolIndex = conf.getFirstLookupPageElements();
+
+            TreeLookupOverflowNode lpOvf;
+            cap = conf.getMaxLookupPageOverflowCapacity();
+            // calculate the number of pages needed
+            int pages = (int) Math.ceil(rest / ((double) cap));
+            pages = (int) Math.ceil((rest - pages) / ((double) cap));
+
+
+            for (i = 0; i < pages; i++) {
+                lookupPagesPool.add(freeSlotPool.removeFirst());
+            }
+            // the ending pointer
+            lookupPagesPool.add(-1L);
+            // get the smallest page available
+            firstPoolNextPointer = lookupPagesPool.getFirst();
+            // write all the pages
+            for (i = 0; i < pages; i++) {
+
+                // create the page
+                lpOvf = createOverflowLookupPage(lookupPagesPool.get(i),
+                        lookupPagesPool.get(i + 1));
+
+                // write it.
+                for (int j = 0;
+                     j < cap && poolIndex < freeSlotPool.size();
+                     j++, poolIndex++) {
+                    lpOvf.addToKeyArrayAt(j, freeSlotPool.get(poolIndex));
+                    lpOvf.incrementCapacity(conf);
+                    written++;
+                }
+                lpOvf.writeNode(treeFile, conf, bPerf);
+            }
+            // remove the last entry
+            lookupPagesPool.removeLast();
+
+            // seek to the position we have to start to write
+            treeFile.seek(conf.getHeaderSize() - 8 /* 1 less position */);
+            treeFile.writeLong(this.firstPoolNextPointer);
+            // write the first page chunk (after the
+            // file header) [no need to check for capacity, as this
+            // is done above]
+            for (i = 0; i < conf.getFirstLookupPageElements(); i++) {
+                treeFile.writeLong(freeSlotPool.get(i));
+                written++;
+            }
+
+
+            if (written != freeSlotPool.size()) {
+                throw new InvalidBTreeStateException("Amount of lookup values written" +
+                        " does not comply with the size of the pool");
+            }
+
+            System.out.println(" -- Multiple pages needed for the " +
+                    "overflow values" + "\n\tPages needed: " + pages +
+                    "\n\tInitial page capacity: " +
+                    conf.getFirstLookupPageElements() +
+                    "\n\tPer Page capacity: " +
+                    conf.getMaxLookupPageOverflowCapacity());
+        }
+    }
+
+    /**
+     * This function adjust the file length by purging the high index pages that
+     * are used. Low index pages are purged last by design.
+     *
+     * @throws IOException
+     */
+    private void conditionFileLength() throws IOException {
         Collections.sort(freeSlotPool);
-        // now write
-        for(long i : freeSlotPool)
-            {treeFile.writeLong(i);}
+        long purged = this.maxPageNumber;
+        long lastPos = freeSlotPool.size() > 0 ? freeSlotPool.getLast() : -1L;
+        while (lastPos != -1L && lastPos == calculatePageOffset(this.maxPageNumber)) {
+            this.maxPageNumber--;
+            freeSlotPool.removeLast();
+            lastPos = freeSlotPool.size() > 0 ? freeSlotPool.getLast() : -1L;
+        }
+        // set the length to be max page plus one
+        treeFile.setLength(calculatePageOffset(this.maxPageNumber + 1));
+        System.out.println("\n\n -- Conditioning file has been completed! " +
+                "\n\tPurged pages: " + (purged - this.maxPageNumber) +
+                "\n\tNew file size: " + calculatePageOffset(this.maxPageNumber + 1) +
+                " bytes");
+    }
+
+    private TreeLookupOverflowNode createOverflowLookupPage(long index, long nextPointer) {
+        return (new TreeLookupOverflowNode(index, nextPointer));
     }
 
     /**
@@ -1761,8 +1895,6 @@ public class BPlusTree {
         // caution.
         if(index < 0)
             {return(null);}
-
-        //calculatePageOffset(index)
         treeFile.seek(index);
         // get the page type
         TreeNodeType nt = getPageType(treeFile.readShort());
@@ -1803,7 +1935,7 @@ public class BPlusTree {
             return(tnode);
         }
         // well, it must be a leaf node
-        else {
+        else if (isLeaf(nt)) {
             long nextptr = treeFile.readLong();
             long prevptr = treeFile.readLong();
             int curCap = treeFile.readInt();
@@ -1825,6 +1957,20 @@ public class BPlusTree {
             tnode.setBeingDeleted(false);
 
             return(tnode);
+        } else {
+            long nextptr = treeFile.readLong();
+            int curCap = treeFile.readInt();
+            TreeLookupOverflowNode lpOvf = new TreeLookupOverflowNode(index, nextptr);
+
+            // now loop through the
+            for (int i = 0; i < curCap; i++) {
+                lpOvf.addToKeyArrayAt(i, treeFile.readLong());
+            }
+
+            // update capacity
+            lpOvf.setCurrentCapacity(curCap);
+
+            return (lpOvf);
         }
     }
 
@@ -1848,13 +1994,18 @@ public class BPlusTree {
     public boolean isOverflowPage(TreeNodeType nt)
         {return(nt == TreeNodeType.TREE_LEAF_OVERFLOW);}
 
-    /*
+    /**
+     * Check if the node is a leaf page
+     *
+     * @param nt nodeType of the node we want to check
+     * @return return true it's a leaf page, false if it's not
+     */
     public boolean isLeaf(TreeNodeType nt) {
         return(nt == TreeNodeType.TREE_LEAF ||
                 nt == TreeNodeType.TREE_LEAF_OVERFLOW ||
                 nt == TreeNodeType.TREE_ROOT_LEAF);
     }
-    */
+
 
     /**
      * Reads an existing file and generates a B+ configuration based on the stored values
@@ -1911,9 +2062,11 @@ public class BPlusTree {
         if(rootIndex < 0)
             {throw new InvalidBTreeStateException("Root can't have index < 0");}
 
+        // read the next lookup page pointer
+        this.firstPoolNextPointer = r.readLong();
+
         // read the root.
         root = readNode(rootIndex);
-
         // finally if needed create a configuration file
         if(generateConf)
             {return(new BPlusConfiguration(pageSize, keySize, entrySize));}
@@ -1938,6 +2091,7 @@ public class BPlusTree {
         treeFile.writeLong(totalTreePages);
         treeFile.writeLong(maxPageNumber);
         treeFile.writeLong(root.getPageIndex());
+        treeFile.writeLong(this.firstPoolNextPointer);
     }
 
     /**
@@ -1984,8 +2138,11 @@ public class BPlusTree {
      *
      * @throws IOException
      */
-    public void commitTree() throws IOException
-        {writeFileHeader(conf); commitLookupPage(); this.treeFile.close();}
+    public void commitTree() throws IOException, InvalidBTreeStateException {
+        commitLookupPage();
+        writeFileHeader(conf);
+        this.treeFile.close();
+    }
 
     /**
      * This function initializes the look-up page; in the simple
@@ -2002,16 +2159,38 @@ public class BPlusTree {
 
         // check if already have a page, if not create it
         if(!exists) {
-            for(int i = 0; i < conf.getLookupPageDegree(); i++)
+            for (int i = 0; i < conf.getFirstLookupPageElements(); i++)
                 {this.treeFile.writeLong(-1);}
         }
         // if we do, read it.
         else {
+
+            // add this as well.
+            //this.freeSlotPool.add(firstPoolNextPointer);
             long val;
-            for(int i = 0; i < conf.getLookupPageDegree(); i++) {
-                if((val = this.treeFile.readLong()) == -1) {break;}
+            int parsed = 0;
+            for (int i = 0; i < conf.getFirstLookupPageElements(); i++) {
+                if ((val = this.treeFile.readLong()) == -1L) {
+                    break;
+                }
                 this.freeSlotPool.add(val);
             }
+
+            // now check if we have more pages
+            long pindex = firstPoolNextPointer;
+            TreeLookupOverflowNode lpOvf;
+            while (pindex != -1L) {
+                parsed++;
+                freeSlotPool.add(pindex);
+                lpOvf = (TreeLookupOverflowNode) readNode(pindex);
+                freeSlotPool.addAll(lpOvf.keyArray.
+                        stream().collect(Collectors.toList()));
+                pindex = lpOvf.getNextPointer();
+            }
+
+            System.out.println("-- Parsed " + parsed +
+                    " lookup overflow pages and the initial one, totaling: " +
+                    freeSlotPool.size() + " entries");
         }
     }
 
@@ -2028,13 +2207,10 @@ public class BPlusTree {
             {index = freeSlotPool.pop(); totalTreePages++; return(index);}
         // if not pad to the end of the file.
         else {
-
-            if(maxPageNumber <= totalTreePages)
-                {
-                    maxPageNumber++;}
-
+            if (maxPageNumber <= totalTreePages) {
+                maxPageNumber++;
+            }
             totalTreePages++;
-
             index = conf.getPageSize() * (maxPageNumber + 1);
             return(index);
         }
@@ -2093,20 +2269,21 @@ public class BPlusTree {
     public long getMaxPageNumber()
         {return maxPageNumber;}
 
-    @SuppressWarnings("unused")
-    public void printTree() throws IOException {
-        root.printNode();
-
-        if(root.isInternalNode()) {
-            TreeInternalNode t = (TreeInternalNode)root;
-            long ptr;
-            for(int i = 0; i < t.getCurrentCapacity()+1; i++) {
-                ptr = t.getPointerAt(i);
-                if(ptr < 0) {break;}
-                printNodeAt(ptr);
-            }
-        }
-    }
+    //TODO I will get around to do this sometime.
+//    @SuppressWarnings("unused")
+//    public void printTree() throws IOException {
+//        root.printNode();
+//
+//        if(root.isInternalNode()) {
+//            TreeInternalNode t = (TreeInternalNode)root;
+//            long ptr;
+//            for(int i = 0; i < t.getCurrentCapacity()+1; i++) {
+//                ptr = t.getPointerAt(i);
+//                if(ptr < 0) {break;}
+//                printNodeAt(ptr);
+//            }
+//        }
+//    }
 
     /**
      *
@@ -2117,7 +2294,9 @@ public class BPlusTree {
         this.totalTreePages = 0L;
         this.maxPageNumber = 0L;
         this.deleteIterations = 0;
+        this.firstPoolNextPointer = -1L;
         this.freeSlotPool = new LinkedList<>();
+        this.lookupPagesPool = new LinkedList<>();
         this.bPerf.setBTree(this);
     }
 
@@ -2128,30 +2307,14 @@ public class BPlusTree {
      * @param sort sort free sort pool?
      */
     private void deletePage(long pageIndex, boolean sort)
-            throws IOException {
+            throws IOException, InvalidBTreeStateException {
         this.freeSlotPool.add(pageIndex);
         this.totalTreePages--;
         this.deleteIterations++;
+
         if(sort || isTimeForConditioning()) {
             this.deleteIterations = 0;
-            Collections.sort(freeSlotPool);
-            long lastPos = freeSlotPool.getLast();
-            while(lastPos == calculateActualPageIndex(this.maxPageNumber)) {
-                this.maxPageNumber--;
-                freeSlotPool.removeLast();
-                lastPos = freeSlotPool.getLast();
-            }
-
-            // set the length to be max page plus one
-            treeFile.setLength(calculateActualPageIndex(this.maxPageNumber + 1));
-
-            //TODO Commit file needs a bit more work as in low page
-            //      sizes a case arises that the lookup-page pool is much
-            //      larger than the available spots.
-            //
-            //
-            // commit the lookup page to the file
-            //commitLookupPage();
+            commitLookupPage();
         }
     }
 
@@ -2162,9 +2325,6 @@ public class BPlusTree {
      */
     private boolean isTimeForConditioning()
         {return(this.deleteIterations == conf.getConditionThreshold());}
-
-    private long calculateActualPageIndex(long index)
-        {return(conf.getPageSize() * (index+1));}
 
     /**
      * Helper to print the node

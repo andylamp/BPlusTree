@@ -8,6 +8,7 @@
 	-- number of pages -- 8 bytes
 	-- max page index -- 8 bytes
 	-- root index -- 8 bytes
+	-- next lookup page pointer -- 8 bytes
 	-- pool of available index spots -- page size - 40 (7 variables);;
  | 
  
@@ -55,4 +56,20 @@ leaf page:
 	// the key to that overflow page
 	satellite data -- variable * max size
 	
+ |
+ 
+lookup page overflow page:
+
+	1Kb total
+	
+ |
+	-- node type -- 2 bytes
+	-- next pointer -- 8 bytes
+	-- current capacity -- 4 bytes
+	
+	-- ADD ONS SIZE: (2+8+4) = 14 bytes
+	
+	-- number of keys dependenet on page size
+	   exact number is floor(pagesize/keysize)
+	   
  |
