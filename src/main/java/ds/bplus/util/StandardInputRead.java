@@ -1,9 +1,5 @@
+/* Courtesy of @garanest with edits by me. */
 package ds.bplus.util;
-/**
- *
- * Courtersy of garanest
- *
- */
 
 
 import java.io.BufferedReader;
@@ -18,15 +14,16 @@ import java.util.Locale;
  * It reads input from the standard input hiding from the user the usage
  * of java.io package classes
  */
-public class StandardInputRead {
+@SuppressWarnings({"WeakerAccess", "unused"})
+class StandardInputRead {
     /** The error that is return when reading positive integers from stdin*/
-    public final static int POS_ERROR = -1;
+    private final static int POS_ERROR = -1;
 
     /** The error that is return when reading negative integers from stdin*/
-    public final static int NEG_ERROR = 1;
+    private final static int NEG_ERROR = 1;
 
     /** The basic reader*/
-    final BufferedReader in;
+    private final BufferedReader in;
 
     /**
      * Class constructor

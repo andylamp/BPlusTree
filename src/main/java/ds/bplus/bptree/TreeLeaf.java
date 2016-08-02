@@ -11,8 +11,8 @@ import java.util.LinkedList;
  * Class for our Tree leafs
  *
  */
-
-public class TreeLeaf extends TreeNode {
+@SuppressWarnings("unused")
+class TreeLeaf extends TreeNode {
     private long nextPagePointer;           // pointer to next leaf in the list
     private long prevPagePointer;           // pointer to prev leaf in the list
     private LinkedList<String> valueList;   // satellite data list
@@ -26,8 +26,8 @@ public class TreeLeaf extends TreeNode {
      * @param nodeType the node type
      * @param pageIndex the index of the page
      */
-    public TreeLeaf(long nextPagePointer, long prevPagePointer,
-                    TreeNodeType nodeType, long pageIndex) {
+    TreeLeaf(long nextPagePointer, long prevPagePointer,
+             TreeNodeType nodeType, long pageIndex) {
         super(nodeType, pageIndex);
         if(nodeType == TreeNodeType.TREE_ROOT_LEAF && nextPagePointer > 0)
             {throw new IllegalArgumentException("Can't have leaf " +
@@ -38,62 +38,62 @@ public class TreeLeaf extends TreeNode {
         this.valueList = new LinkedList<>();
     }
 
-    public void addToOverflowList(int index, long value)
+    void addToOverflowList(int index, long value)
         {overflowList.add(index, value);}
 
-    public void addLastToOverflowList(long value)
+    void addLastToOverflowList(long value)
         {overflowList.addLast(value);}
 
-    public void addLastToValueList(String value)
+    void addLastToValueList(String value)
         {valueList.addLast(value);}
 
-    public long getOverflowPointerAt(int index)
+    long getOverflowPointerAt(int index)
         {return overflowList.get(index);}
 
-    public void pushToOverflowList(long overflowPointer)
+    void pushToOverflowList(long overflowPointer)
         {overflowList.push(overflowPointer);}
 
-    public long popOverflowPointer()
+    long popOverflowPointer()
         {return(overflowList.pop());}
 
-    public void setOVerflowPointerAt(int index,  long value)
+    void setOverflowPointerAt(int index, long value)
         {overflowList.set(index, value);}
 
-    public long removeLastOverflowPointer()
+    long removeLastOverflowPointer()
         {return(overflowList.removeLast());}
 
-    public long getLastOverflowPointer()
+    long getLastOverflowPointer()
         {return(overflowList.getLast());}
 
-    public void addToValueList(int index, String value)
+    void addToValueList(int index, String value)
         {valueList.add(index, value);}
 
-    public String getValueAt(int index)
+    String getValueAt(int index)
         {return valueList.get(index);}
 
-    public void pushToValueList(String value)
+    void pushToValueList(String value)
         {valueList.push(value);}
 
-    public String popValue()
+    String popValue()
         {return valueList.pop();}
 
-    public String removeLastValue()
+    String removeLastValue()
         {return  valueList.removeLast();}
 
-    public long getNextPagePointer()
+    long getNextPagePointer()
         {return(nextPagePointer);}
 
-    public void setNextPagePointer(long next)
+    void setNextPagePointer(long next)
         {nextPagePointer = next;}
 
-    public long getPrevPagePointer()
+    long getPrevPagePointer()
         {return prevPagePointer;}
 
-    public void setPrevPagePointer(long prevPagePointer) {
+    void setPrevPagePointer(long prevPagePointer) {
         this.prevPagePointer = prevPagePointer;
     }
 
-    public String removeEntryAt(int index, BPlusConfiguration conf)
+    String removeEntryAt(int index, BPlusConfiguration conf)
             throws InvalidBTreeStateException {
         keyArray.remove(index);
         overflowList.remove(index);
@@ -113,7 +113,7 @@ public class TreeLeaf extends TreeNode {
      *
      * @param r pointer to *opened* B+ tree file
      * @param conf configuration parameter
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     @Override
     public void writeNode(RandomAccessFile r, BPlusConfiguration conf,

@@ -21,10 +21,10 @@ CLRS didn't include an implementation of a B+ Tree but only for the B-Tree with 
 and **delete** pseudocode (well, one could say that they gave the steps...but that's 
 not the point).
 
-It has to be noted that I could find some B+ Tree implementations that had delete and duplicate
- key support, mainly in open-source database projects. This meant that those implementation 
- were deeply integrated into these project and as a result they were optimized for their 
- particular use-cases. Finally the code bases where significantly larger 
+It has to be noted that I *could* find some B+ Tree implementations that had delete and duplicate
+ key support, mainly in open-source database projects. This unfortunately meant that these
+ implementations  were deeply integrated into their parent projects and as a result they were
+ optimized for their particular use-cases. Finally the code bases where significantly larger
  (hence making the code reading/understanding much harder than it should be!).
 
 So I went about to implement mine (cool stuff, many hours of head scratching were involved!) 
@@ -67,7 +67,9 @@ Here two distinct functions are used to cover these two cases:
 * **searchKey** is used for singular value searches (unique or not)
 * **rangeSearch** is used for performing range queries
 
-Both of these methods require only one pass over the tree to find the results (if any).
+Both of these methods require only one pass over the tree to find the results (if any). Additionally, since
+we store the keys in a sorted order we can exploit binary search to reduce the total node lookup time *significantly*.
+This is done along with a slight modification to the search algorithm to return the lower bound instead of failure.
 
 ## Deletes
 

@@ -1,7 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 
 # IntelliJ project files
-.idea
+.idea/
 *.iml
 out
 gen
@@ -9,10 +9,16 @@ gen
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
+# Output folder
+target/
+
 # Package Files #
 *.jar
 *.war
 *.ear
+
+# Binary files
+*.bin
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*

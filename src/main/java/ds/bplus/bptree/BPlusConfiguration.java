@@ -7,6 +7,7 @@ package ds.bplus.bptree;
  * You can view a description on all of the parameters below...
  *
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class BPlusConfiguration {
 
     private int pageSize;           // page size (in bytes)

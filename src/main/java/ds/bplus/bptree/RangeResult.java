@@ -9,6 +9,7 @@ import java.util.LinkedList;
  * access and manipulation.
  *
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class RangeResult {
 
     // our linked list

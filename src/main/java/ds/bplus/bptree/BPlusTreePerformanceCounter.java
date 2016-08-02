@@ -4,6 +4,7 @@ import ds.bplus.util.InvalidBTreeStateException;
 
 import java.io.IOException;
 
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class BPlusTreePerformanceCounter {
     private int totalNodeReads;
     private int totalInternalNodeReads;
@@ -68,62 +69,62 @@ public class BPlusTreePerformanceCounter {
         this.trackIO = trackIO;
     }
 
-    public void setBTree(BPlusTree bt) {
+    void setBTree(BPlusTree bt) {
         this.bt = bt;
     }
 
-    public void incrementTotalPages() {
+    void incrementTotalPages() {
         if(trackIO) {
             totalPages++;
         }
     }
 
-    public void incrementTotalOverflowPages() {
+    void incrementTotalOverflowPages() {
         if(trackIO) {
             totalOverflowPages++;
             incrementTotalPages();
         }
     }
 
-    public void incrementTotalInternalNodes() {
+    void incrementTotalInternalNodes() {
         if(trackIO) {
             totalInternalNodes++;
             incrementTotalPages();
         }
     }
 
-    public void incrementTotalLeaves() {
+    void incrementTotalLeaves() {
         if(trackIO) {
             totalLeaves++;
             incrementTotalPages();
         }
     }
 
-    public void incrementTotalNodeReads() {
+    private void incrementTotalNodeReads() {
         if(trackIO) {
             totalNodeReads++;
         }
     }
 
-    public void incrementTotalNodeWrites() {
+    private void incrementTotalNodeWrites() {
         if(trackIO) {
             totalNodeWrites++;
         }
     }
 
-    public void incrementTotalInsertions() {
+    void incrementTotalInsertions() {
         if(trackIO) {
             totalInsertions++;
         }
     }
 
-    public void incrementTotalDeletions() {
+    private void incrementTotalDeletions() {
         if(trackIO) {
             totalDeletions++;
         }
     }
 
-    public void incrementTotalInternalNodeDeletions() {
+    void incrementTotalInternalNodeDeletions() {
         if(trackIO) {
             totalInternalNodeDeletions++;
             incrementTotalDeletions();
@@ -144,58 +145,62 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementTotalSearches() {
+    void incrementTotalSearches() {
         if(trackIO) {
             totalSearches++;
         }
     }
 
-    public void incrementTotalRangeQueries() {
+    void incrementTotalRangeQueries() {
         if(trackIO) {
             totalRangeQueries++;
         }
     }
 
-    public void incrementTotalSplits() {
+    private void incrementTotalSplits() {
         if(trackIO) {
             totalSplits++;
         }
     }
 
-    public void incrementRootSplits() {
+    void incrementRootSplits() {
         if(trackIO) {
             totalRootSplits++;
             incrementTotalSplits();
         }
     }
 
-    public void incrementInternalNodeSplits() {
+    void incrementInternalNodeSplits() {
         if(trackIO) {
             totalInternalNodeSplits++;
             incrementTotalSplits();
         }
     }
 
-    public void incrementTotalLeafSplits() {
+    void incrementTotalLeafSplits() {
         if(trackIO) {
             totalLeafSplits++;
             incrementTotalSplits();
         }
     }
 
-    public void incrementPageReads() {
+    private void incrementPageReads() {
         if(trackIO) {
             pageReads++;
         }
     }
 
-    public void incrementPageWrites() {
+    private void incrementPageWrites() {
         if(trackIO) {
             pageWrites++;
         }
     }
 
     public void startPageTracking() {
+        setDefaults();
+    }
+
+    private void setDefaults() {
         pageReads = 0;
         pageWrites = 0;
         pageInternalReads = 0;
@@ -208,14 +213,7 @@ public class BPlusTreePerformanceCounter {
     }
 
     private void resetIntermittentPageTracking() {
-        pageReads = 0;
-        pageWrites = 0;
-        pageInternalReads = 0;
-        pageLeafReads = 0;
-        pageOverflowReads = 0;
-        pageInternalWrites = 0;
-        pageLeafWrites = 0;
-        pageOverflowWrites = 0;
+        setDefaults();
     }
 
     public int getPageReads() {
@@ -419,35 +417,35 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementIntermittentLeafNodeReads() {
+    private void incrementIntermittentLeafNodeReads() {
         if(trackIO) {
             pageLeafReads++;
             incrementPageReads();
         }
     }
 
-    public void incrementIntermittentOverflowPageReads() {
+    private void incrementIntermittentOverflowPageReads() {
         if(trackIO) {
             pageOverflowReads++;
             incrementPageReads();
         }
     }
 
-    public void incrementIntermittentInternalNodeWrites() {
+    private void incrementIntermittentInternalNodeWrites() {
         if(trackIO) {
             pageInternalWrites++;
             incrementPageWrites();
         }
     }
 
-    public void incrementIntermittentLeafNodeWrites() {
+    private void incrementIntermittentLeafNodeWrites() {
         if(trackIO) {
             pageLeafWrites++;
             incrementPageWrites();
         }
     }
 
-    public void incrementIntermittentOverflowPageWrites() {
+    private void incrementIntermittentOverflowPageWrites() {
         if(trackIO) {
             pageOverflowWrites++;
             incrementPageWrites();
@@ -455,7 +453,7 @@ public class BPlusTreePerformanceCounter {
     }
 
 
-    public void incrementTotalInternalNodeReads() {
+    void incrementTotalInternalNodeReads() {
         if(trackIO) {
             totalInternalNodeReads++;
             incrementTotalNodeReads();
@@ -463,7 +461,7 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementTotalLeafNodeReads() {
+    void incrementTotalLeafNodeReads() {
         if(trackIO) {
             totalLeafNodeReads++;
             incrementTotalNodeReads();
@@ -471,7 +469,7 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementTotalOverflowReads() {
+    void incrementTotalOverflowReads() {
         if(trackIO) {
             totalOverflowReads++;
             incrementTotalNodeReads();
@@ -479,7 +477,7 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementTotalInternalNodeWrites() {
+    void incrementTotalInternalNodeWrites() {
         if(trackIO) {
             totalInternalNodeWrites++;
             incrementTotalNodeWrites();
@@ -487,7 +485,7 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementTotalLeafNodeWrites() {
+    void incrementTotalLeafNodeWrites() {
         if(trackIO) {
             totalLeafNodeWrites++;
             incrementTotalNodeWrites();
@@ -495,7 +493,7 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public void incrementTotalOverflowNodeWrites() {
+    void incrementTotalOverflowNodeWrites() {
         if(trackIO) {
             totalOverflowWrites++;
             incrementTotalNodeWrites();
@@ -503,7 +501,7 @@ public class BPlusTreePerformanceCounter {
         }
     }
 
-    public int totalOperationCount() {
+    private int totalOperationCount() {
         return(totalInsertions + totalSearches +
                 totalRangeQueries + totalDeletions);
     }
@@ -548,7 +546,7 @@ public class BPlusTreePerformanceCounter {
         System.out.println("\tLeaf node splits: " + totalLeafSplits);
     }
 
-    public void resetAllMetrics() {
+    void resetAllMetrics() {
         totalPages = 0;
         totalInternalNodes = 0;
         totalLeaves = 0;
@@ -578,15 +576,7 @@ public class BPlusTreePerformanceCounter {
         totalInternalNodeSplits = 0;
         totalLeafSplits = 0;
 
-        pageReads = 0;
-        pageWrites = 0;
-        pageInternalReads = 0;
-        pageLeafReads = 0;
-        pageOverflowReads = 0;
-
-        pageInternalWrites = 0;
-        pageLeafWrites = 0;
-        pageOverflowWrites = 0;
+        setDefaults();
 
         totalSearchReads = 0;
         totalSearchWrites = 0;

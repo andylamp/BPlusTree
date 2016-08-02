@@ -3,8 +3,8 @@ package ds.bplus.bptree;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-
-public class TreeLookupOverflowNode extends TreeNode {
+@SuppressWarnings("unused")
+class TreeLookupOverflowNode extends TreeNode {
 
     private long next; // next pointer
 
@@ -14,7 +14,7 @@ public class TreeLookupOverflowNode extends TreeNode {
      *
      * @param pageIndex the page index in the file
      */
-    public TreeLookupOverflowNode(long pageIndex, long nextPointer) {
+    TreeLookupOverflowNode(long pageIndex, long nextPointer) {
         super(TreeNodeType.TREE_LOOKUP_OVERFLOW, pageIndex);
         this.next = nextPointer;
     }
@@ -32,7 +32,7 @@ public class TreeLookupOverflowNode extends TreeNode {
      * @param r     an *already* open pointer which points to our B+ Tree file
      * @param conf  B+ Tree configuration
      * @param bPerf instance of performance counter class
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     @Override
     public void writeNode(RandomAccessFile r,
@@ -65,7 +65,7 @@ public class TreeLookupOverflowNode extends TreeNode {
      *
      * @return the next pointer value
      */
-    public long getNextPointer() {
+    long getNextPointer() {
         return next;
     }
 
@@ -80,6 +80,16 @@ public class TreeLookupOverflowNode extends TreeNode {
 
     @Override
     public void printNode() {
+        System.out.println("\nPrinting node of type: " + getNodeType().toString() +
+                " with index: " + getPageIndex());
+        System.out.println("Current node capacity is: " + getCurrentCapacity());
+
+        System.out.println("\nPrinting tuples: \n");
+        for (Long key : keyArray) {
+            System.out.print(key);
+        }
+
+        System.out.println("\n");
 
     }
 }

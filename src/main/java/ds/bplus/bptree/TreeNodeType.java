@@ -1,6 +1,6 @@
 package ds.bplus.bptree;
 
-public enum TreeNodeType {
+enum TreeNodeType {
     TREE_LEAF,
     TREE_INTERNAL_NODE,
     TREE_ROOT_INTERNAL,

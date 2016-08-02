@@ -16,7 +16,7 @@ public class TestRunner {
      * Run the test interface
      *
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     @SuppressWarnings("unused")
     public static void runBench(BPlusTreePerformanceCounter bPerf)
@@ -34,7 +34,7 @@ public class TestRunner {
      * @param sin input class
      * @return a valid user option selection
      */
-    public static int menuChoice(StandardInputRead sin) {
+    private static int menuChoice(StandardInputRead sin) {
         System.out.println("\nSelect from menu\n");
         System.out.println("\t1) Run default trials");
         System.out.println("\t2) Run insertion run");
@@ -52,7 +52,8 @@ public class TestRunner {
      * Silently just run the default trials using the default values
      *
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     @SuppressWarnings("unused")
     public static void runDefaultTrialsFast(BPlusTreePerformanceCounter bPerf)
@@ -74,10 +75,11 @@ public class TestRunner {
      * @param choice the user choice
      * @param sin the input class
      * @param bPerf performance class ties to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void handleChoices(int choice, StandardInputRead sin,
-                                     BPlusTreePerformanceCounter bPerf)
+    private static void handleChoices(int choice, StandardInputRead sin,
+                                      BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         //boolean unique = true;
         switch(choice) {
@@ -115,7 +117,13 @@ public class TestRunner {
         }
     }
 
-    public static boolean isUnique(StandardInputRead sin) {
+    /**
+     * Grab from user the unique flag.
+     *
+     * @param sin console input library.
+     * @return the boolean user choice.
+     */
+    private static boolean isUnique(StandardInputRead sin) {
         System.out.println("Want unique results?");
         System.out.println("\t1) Yes");
         System.out.println("\t2) No");
@@ -135,10 +143,11 @@ public class TestRunner {
      *
      * @param sin input class
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runInsertion(StandardInputRead sin,
-                                    BPlusTreePerformanceCounter bPerf)
+    private static void runInsertion(StandardInputRead sin,
+                                     BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         String val = "1234567890";  // default value
@@ -156,10 +165,11 @@ public class TestRunner {
      *
      * @param sin input class
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runDeletion(StandardInputRead sin,
-                                   BPlusTreePerformanceCounter bPerf)
+    private static void runDeletion(StandardInputRead sin,
+                                    BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         int key;
@@ -177,10 +187,11 @@ public class TestRunner {
      *
      * @param sin input class
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runSearch(StandardInputRead sin,
-                                 BPlusTreePerformanceCounter bPerf)
+    private static void runSearch(StandardInputRead sin,
+                                  BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         int key;
@@ -196,10 +207,11 @@ public class TestRunner {
      *
      * @param sin input class
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runRangeQuery(StandardInputRead sin,
-                                     BPlusTreePerformanceCounter bPerf)
+    private static void runRangeQuery(StandardInputRead sin,
+                                      BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         boolean unique = isUnique(sin);
         int minKey;
@@ -228,11 +240,12 @@ public class TestRunner {
      * @param unique allow duplicates?
      * @param verbose verbose results?
      * @param bPerf performance class tied to a B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runDefaultTrials(int trials, int vmin, int vmax, int qrange,
-                                        String val, boolean unique, boolean verbose,
-                                        BPlusTreePerformanceCounter bPerf)
+    private static void runDefaultTrials(int trials, int vmin, int vmax, int qrange,
+                                         String val, boolean unique, boolean verbose,
+                                         BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
         TrialsClass.runInsertTrial(trials, vmin, vmax, val, unique, bPerf, verbose);
         TrialsClass.runSearchTrial(trials, vmin, vmax, unique, bPerf, verbose);

@@ -11,12 +11,12 @@ import java.util.LinkedList;
  * -- finally a convenient boolean flag to indicate the search result (T/F)
  *
  */
-
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class SearchResult {
 
-    private TreeLeaf leafLoc;               // the leaf which our (K, V) might reside
     private final int index;                // index where first key is <= our requested key
     private final boolean found;            // we found the requested key?
+    private TreeLeaf leafLoc;               // the leaf which our (K, V) might reside
     private LinkedList<String> ovfValues;   // linked list in the case of non-unique queries
 
     /**

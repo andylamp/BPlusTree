@@ -15,21 +15,21 @@ import java.util.LinkedList;
 * @version 1.0 
 */ 
 public class BPlusTreeTest {
-   private String satelliteValue;
-   private boolean uniqueEntries;
-   private boolean verboseResults;
-   private int startKey;
-   private int endKey;
-   private int totalKeys;
-   private boolean recreateTree;
+    private String satelliteValue;
+    private boolean uniqueEntries;
+    private boolean verboseResults;
+    private int startKey;
+    private int endKey;
+    private int totalKeys;
+    private boolean recreateTree;
 
-   private BPlusConfiguration btConf256;
-   private BPlusConfiguration btConf1024;
-   private BPlusConfiguration btConf2048;
+    private BPlusConfiguration btConf256;
+    private BPlusConfiguration btConf1024;
+    private BPlusConfiguration btConf2048;
 
-   private BPlusTreePerformanceCounter bPerf256;
-   private BPlusTreePerformanceCounter bPerf1024;
-   private BPlusTreePerformanceCounter bPerf2048;
+    private BPlusTreePerformanceCounter bPerf256;
+    private BPlusTreePerformanceCounter bPerf1024;
+    private BPlusTreePerformanceCounter bPerf2048;
 
    private BPlusTree bt256;
    private BPlusTree bt1024;
@@ -38,20 +38,18 @@ public class BPlusTreeTest {
    @Before
    public void before() throws Exception {
       System.out.println("Before test");
-
-      startKey = 0;
-       endKey = 4000;
-      totalKeys = endKey - startKey;
-      satelliteValue = " ";
-
+       startKey = 0;
+       endKey = 10000;
+       totalKeys = endKey - startKey;
+       satelliteValue = " ";
    }
 
    @After
    public void after() throws Exception {
-      //System.out.println("After test");
+       //System.out.println("After test");
        bt256.commitTree();
-       //bt1024.commitTree();
-       //bt2048.commitTree();
+       bt1024.commitTree();
+       bt2048.commitTree();
    }
 
    /**
@@ -66,7 +64,7 @@ public class BPlusTreeTest {
     *    - Satellite data size: 20 Bytes each entry
     *    - Key size: 8 bytes
     *
-    * @throws Exception
+    * @throws Exception is thrown when an error is catch'ed in any of the operations performed.
     */
    @Test
    public void testMassSequentialInsertions() throws Exception {
@@ -142,7 +140,7 @@ public class BPlusTreeTest {
      *    - Key size: 8 bytes
      *
      * In the end they are deleted as well.
-     * @throws Exception
+     * @throws Exception is thrown when an error is catch'ed in any of the operations performed.
      */
     @Test
     public void testMassSequentialInsertionsWithDelete() throws Exception {
@@ -185,13 +183,22 @@ public class BPlusTreeTest {
 
       int[] res256, res1024, res2048;
       for(int i = startKey; i < endKey; i++) {
-         res256 = bPerf256.deleteIO(i, uniqueEntries, verboseResults);
-         res1024 = bPerf1024.deleteIO(i, uniqueEntries, verboseResults);
-         res2048 = bPerf2048.deleteIO(i, uniqueEntries, verboseResults);
+          res256 = bPerf256.deleteIO(i, uniqueEntries, verboseResults);
+          res1024 = bPerf1024.deleteIO(i, uniqueEntries, verboseResults);
+          res2048 = bPerf2048.deleteIO(i, uniqueEntries, verboseResults);
 
-         if(res256[8] == 1) {found_cnt256++;}
-         if(res1024[8] == 1) {found_cnt1024++;}
-         if(res2048[8] == 1) {found_cnt2048++;}
+          //bt256.commitLookupPage();
+          //bt1024.commitLookupPage();
+          //bt2048.commitLookupPage();
+          if (res256[8] == 1) {
+              found_cnt256++;
+          }
+          if (res1024[8] == 1) {
+              found_cnt1024++;
+          }
+          if (res2048[8] == 1) {
+              found_cnt2048++;
+          }
       }
 
       // check result numbers
@@ -213,9 +220,8 @@ public class BPlusTreeTest {
     *
     * with the following (Key, Value) settings:
     *
-    *    - Satellite data size: 20 Bytes each entry
-    *    - Key size: 8 bytes
-    * @throws Exception
+    *    - Satellite data size: 20
+    * @throws Exception is thrown when an error is catch'ed in any of the operations performed.
     */
    @Test
    public void testMassRandomUniqueInsertions() throws Exception {
@@ -304,13 +310,13 @@ public class BPlusTreeTest {
     *    - Key size: 8 bytes
     *
     * After insertion each of the keys are searched.
-    * @throws Exception
+    * @throws Exception is thrown when an error is catch'ed in any of the operations performed.
     */
    @Test
    public void testMassRandomInsertionsWithSearch() throws Exception {
       uniqueEntries = false;
       verboseResults = false;
-       recreateTree = false;
+       recreateTree = true;
 
       LinkedList<Long> bt256val, bt1024val, bt2048val;
 
@@ -408,13 +414,13 @@ public class BPlusTreeTest {
      * After insertion they are deleted in the same order as they were
      * put in.
      *
-     * @throws Exception
+     * @throws Exception is thrown when an error is catch'ed in any of the operations performed.
      */
    @Test
    public void testMassRandomInsertionsWithDelete() throws Exception {
       uniqueEntries = false;
       verboseResults = false;
-       recreateTree = false;
+       recreateTree = true;
 
       LinkedList<Long> bt256val, bt1024val, bt2048val;
 

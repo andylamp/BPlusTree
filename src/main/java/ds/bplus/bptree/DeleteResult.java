@@ -8,6 +8,7 @@ import java.util.LinkedList;
  * values deleted for that key (usually one or all).
  *
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class DeleteResult {
     private final long key;
     private final boolean found;

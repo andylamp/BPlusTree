@@ -10,8 +10,8 @@ import java.util.LinkedList;
  * Class for our Internal nodes
  *
  */
-
-public class TreeInternalNode extends TreeNode {
+@SuppressWarnings({"WeakerAccess", "unused"})
+class TreeInternalNode extends TreeNode {
 
     private final LinkedList<Long> pointerArray;  // the pointer array
 
@@ -21,37 +21,36 @@ public class TreeInternalNode extends TreeNode {
      * @param nodeType the node type parameter
      * @param pageIndex the index of the page
      */
-    public TreeInternalNode(TreeNodeType nodeType, long pageIndex) {
+    TreeInternalNode(TreeNodeType nodeType, long pageIndex) {
         super(nodeType, pageIndex);
         pointerArray = new LinkedList<>();
     }
 
-
-    public void removePointerAt(int index)
+    void removePointerAt(int index)
         {pointerArray.remove(index);}
 
-    public long getPointerAt(int index) {
+    long getPointerAt(int index) {
         return((index < 0 || index >= pointerArray.size()) ? -1 : pointerArray.get(index));}
 
-    public long popPointer()
+    long popPointer()
         {return(pointerArray.pop());}
 
-    public long removeLastPointer()
+    long removeLastPointer()
         {return(pointerArray.removeLast());}
 
-    public void addPointerAt(int index, long val)
+    void addPointerAt(int index, long val)
         {pointerArray.add(index, val);}
 
-    public void addPointerLast(long val)
+    void addPointerLast(long val)
         {pointerArray.addLast(val);}
 
-    public void setPointerAt(int index, long val)
+    void setPointerAt(int index, long val)
         {pointerArray.set(index, val);}
 
-    public int getPointerListSize()
+    int getPointerListSize()
         {return(pointerArray.size());}
 
-    public void pushToPointerArray(long val)
+    void pushToPointerArray(long val)
         {pointerArray.push(val);}
 
 
@@ -69,7 +68,7 @@ public class TreeInternalNode extends TreeNode {
      *  we go like: k1 -- p0 -- k2 -- p1 ... kn -- pn+1
      *
      * @param r pointer to *opened* B+ tree file
-     * @throws IOException
+     * @throws IOException is thrown when an I/O exception is captured.
      */
     @Override
     public void writeNode(RandomAccessFile r, BPlusConfiguration conf,

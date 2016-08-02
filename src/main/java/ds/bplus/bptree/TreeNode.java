@@ -13,13 +13,13 @@ import java.util.LinkedList;
  * each of the node types have.
  *
  */
-
-public abstract class TreeNode {
-    protected final LinkedList<Long> keyArray;  // key array
-    private TreeNodeType nodeType;              // actual node type
-    private long pageIndex;                     // node page index
-    private int currentCapacity;                // current capacity
-    private boolean beingDeleted;               // deleted flag
+@SuppressWarnings("unused")
+abstract class TreeNode {
+    final LinkedList<Long> keyArray;  // key array
+    private TreeNodeType nodeType;    // actual node type
+    private long pageIndex;           // node page index
+    private int currentCapacity;      // current capacity
+    private boolean beingDeleted;     // deleted flag
 
 
     /**
@@ -28,7 +28,7 @@ public abstract class TreeNode {
      * @param nodeType the actual node type
      * @param pageIndex the page index in the file
      */
-    public TreeNode(TreeNodeType nodeType, long pageIndex)  {
+    TreeNode(TreeNodeType nodeType, long pageIndex) {
         this.nodeType = nodeType;           // actual node type
         this.pageIndex = pageIndex;         // node page index
         this.currentCapacity = 0;           // current capacity
@@ -42,7 +42,7 @@ public abstract class TreeNode {
      *
      * @return true is the node is full false if it's not.
      */
-    public boolean isFull(BPlusConfiguration conf) {
+    boolean isFull(BPlusConfiguration conf) {
         if(isLeaf()) {
             return(isOverflow() ?
                     (conf.getMaxOverflowNodeCapacity() == currentCapacity) :
@@ -58,7 +58,7 @@ public abstract class TreeNode {
      * @param conf B+ Tree configuration reference
      * @return true is the node needs to be merged or false if it's not
      */
-    public boolean isTimeToMerge(BPlusConfiguration conf) {
+    boolean isTimeToMerge(BPlusConfiguration conf) {
         // for roots (internal or leaf) return true only when empty
         if(isRoot())
             {return(getCurrentCapacity() <= 1);}
@@ -69,30 +69,59 @@ public abstract class TreeNode {
             // otherwise return based on degree
             else
                 {return (conf.getMinLeafNodeCapacity() >= currentCapacity);}
+        } else // internal
+        {
+            return (conf.getMinInternalNodeCapacity() >= currentCapacity);
         }
-        else
-        // internal
-        {return(conf.getMinInternalNodeCapacity() >= currentCapacity);}
     }
 
-    public int getCurrentCapacity()
-        {return(currentCapacity);}
+    /**
+     * Returns the current node capacity
+     *
+     * @return the newCap variable value.
+     */
+    int getCurrentCapacity() {
+        return (currentCapacity);
+    }
 
-    public void setCurrentCapacity(int newCap) {
+    /**
+     * Set the current capacity
+     *
+     * @param newCap replace node capacity with this argument.
+     */
+    void setCurrentCapacity(int newCap) {
         currentCapacity = newCap;
     }
 
-    public void incrementCapacity(BPlusConfiguration conf) throws InvalidBTreeStateException {
+    /**
+     * Increment the node capacity by one.
+     *
+     * @param conf configuration instance for validating the limits.
+     * @throws InvalidBTreeStateException is thrown when the capacity limits are violated after incrementing.
+     */
+    void incrementCapacity(BPlusConfiguration conf) throws InvalidBTreeStateException {
         currentCapacity++;
         validateNodeCapacityLimits(conf);
     }
 
-    public void decrementCapacity(BPlusConfiguration conf)
+    /**
+     * Decrement the node capacity by one.
+     *
+     * @param conf configuration instance for validating the limits.
+     * @throws InvalidBTreeStateException is thrown when the capacity limits are violated after decrementing.
+     */
+    void decrementCapacity(BPlusConfiguration conf)
             throws InvalidBTreeStateException {
         currentCapacity--;
         validateNodeCapacityLimits(conf);
     }
 
+    /**
+     * Function that validates the node capacity invariants based on the current configuration instance.
+     *
+     * @param conf configuration instance for validating the limits.
+     * @throws InvalidBTreeStateException is thrown when the capacity limits are violated upon checking.
+     */
     private void validateNodeCapacityLimits(BPlusConfiguration conf)
             throws InvalidBTreeStateException {
 
@@ -156,10 +185,21 @@ public abstract class TreeNode {
         }
     }
 
-    public boolean getBeingDeleted()
-        {return beingDeleted;}
+    /**
+     * Being deleted flag
+     *
+     * @return true if the node is marked to be deleted, false otherwise.
+     */
+    public boolean getBeingDeleted() {
+        return beingDeleted;
+    }
 
-    public void setBeingDeleted(boolean beingDeleted) {
+    /**
+     * Set being deleted flag
+     *
+     * @param beingDeleted value to set the flag.
+     */
+    void setBeingDeleted(boolean beingDeleted) {
         this.beingDeleted = beingDeleted;
     }
 
@@ -168,8 +208,7 @@ public abstract class TreeNode {
      *
      * @return true if it is empty false if it's not.
      */
-    @SuppressWarnings("unused")
-    public boolean isEmpty()
+    boolean isEmpty()
         {return(currentCapacity == 0);}
 
     /**
@@ -177,7 +216,7 @@ public abstract class TreeNode {
      *
      * @return true if the node is an overflow page, false if it's not
      */
-    public boolean isOverflow() {
+    boolean isOverflow() {
         return (nodeType == TreeNodeType.TREE_LEAF_OVERFLOW);
     }
 
@@ -186,7 +225,7 @@ public abstract class TreeNode {
      *
      * @return true if the node is a leaf, false if it's not.
      */
-    public boolean isLeaf() {
+    boolean isLeaf() {
         return(nodeType == TreeNodeType.TREE_LEAF ||
                 nodeType == TreeNodeType.TREE_LEAF_OVERFLOW ||
                 nodeType == TreeNodeType.TREE_ROOT_LEAF);
@@ -197,7 +236,7 @@ public abstract class TreeNode {
      *
      * @return true if it is a tree root, false if it's not.
      */
-    public boolean isRoot() {
+    boolean isRoot() {
         return(nodeType == TreeNodeType.TREE_ROOT_INTERNAL ||
                 nodeType == TreeNodeType.TREE_ROOT_LEAF);
     }
@@ -207,7 +246,7 @@ public abstract class TreeNode {
      *
      * @return true if the node is an internal node, false if it's not.
      */
-    public boolean isInternalNode() {
+    boolean isInternalNode() {
         return(nodeType == TreeNodeType.TREE_INTERNAL_NODE ||
                 nodeType == TreeNodeType.TREE_ROOT_INTERNAL);
     }
@@ -217,7 +256,7 @@ public abstract class TreeNode {
      *
      * @return true if the node is a lookup page overflow node, false otherwise
      */
-    public boolean isLookupPageOverflowNode() {
+    boolean isLookupPageOverflowNode() {
         return (nodeType == TreeNodeType.TREE_LOOKUP_OVERFLOW);
     }
 
@@ -226,7 +265,7 @@ public abstract class TreeNode {
      *
      * @return the current node type
      */
-    public TreeNodeType getNodeType() {
+    TreeNodeType getNodeType() {
         return (nodeType);
     }
 
@@ -235,8 +274,7 @@ public abstract class TreeNode {
      *
      * @param nodeType set the node type
      */
-    @SuppressWarnings("all")
-    public void setNodeType(TreeNodeType nodeType) {
+    void setNodeType(TreeNodeType nodeType) {
         // check if we presently are a leaf
         if (isLeaf()) {
             this.nodeType = nodeType;
@@ -258,7 +296,7 @@ public abstract class TreeNode {
      * @param index the position to get the key
      * @return the key at position
      */
-    public long getKeyAt(int index)
+    long getKeyAt(int index)
         {return(keyArray.get(index));}
 
     /**
@@ -266,7 +304,7 @@ public abstract class TreeNode {
      *
      * @return current page index
      */
-    public long getPageIndex()
+    long getPageIndex()
         {return pageIndex;}
 
     /**
@@ -274,8 +312,7 @@ public abstract class TreeNode {
      *
      * @param pageIndex new page index
      */
-    @SuppressWarnings("unused")
-    public void setPageIndex(long pageIndex)
+    void setPageIndex(long pageIndex)
         {this.pageIndex = pageIndex;}
 
     /**
@@ -284,8 +321,7 @@ public abstract class TreeNode {
      * @param index index to set the key
      * @param key key to set in position
      */
-    @SuppressWarnings("unused")
-    public void setKeyArrayAt(int index, long key)
+    void setKeyArrayAt(int index, long key)
         {keyArray.set(index, key);}
 
     /**
@@ -295,7 +331,7 @@ public abstract class TreeNode {
      * @param index index to shift keys and add
      * @param key key to add in position
      */
-    public void addToKeyArrayAt(int index, long key)
+    void addToKeyArrayAt(int index, long key)
         {keyArray.add(index, key);}
 
     /**
@@ -303,7 +339,7 @@ public abstract class TreeNode {
      *
      * @param key key to push
      */
-    public void pushToKeyArray(long key)
+    void pushToKeyArray(long key)
         {keyArray.push(key);}
 
     /**
@@ -311,7 +347,7 @@ public abstract class TreeNode {
      *
      * @param key key to add
      */
-    public void addLastToKeyArray(long key)
+    void addLastToKeyArray(long key)
         {keyArray.addLast(key);}
 
     /**
@@ -319,7 +355,7 @@ public abstract class TreeNode {
      *
      * @return return the last key
      */
-    public long getLastKey()
+    long getLastKey()
         {return keyArray.getLast();}
 
     /**
@@ -327,7 +363,7 @@ public abstract class TreeNode {
      *
      * @return return the first key value
      */
-    public long getFirstKey()
+    long getFirstKey()
         {return keyArray.getFirst();}
 
     /**
@@ -335,7 +371,7 @@ public abstract class TreeNode {
      *
      * @return key that is in the head of the array
      */
-    public long popKey()
+    long popKey()
         {return keyArray.pop();}
 
     /**
@@ -343,7 +379,7 @@ public abstract class TreeNode {
      *
      * @return key that is in the last place of the array
      */
-    public long removeLastKey()
+    long removeLastKey()
         {return keyArray.removeLast();}
 
     /**
@@ -352,8 +388,7 @@ public abstract class TreeNode {
      * @param index index that points where to remvoe the key
      * @return removed key
      */
-    @SuppressWarnings("unused")
-    public long removeKeyAt(int index)
+    long removeKeyAt(int index)
         {return(keyArray.remove(index));}
 
     /**
@@ -361,9 +396,9 @@ public abstract class TreeNode {
      * easily stored in our file.
      *
      * @return the number representation of the node type
-     * @throws InvalidPropertiesFormatException
+     * @throws InvalidPropertiesFormatException is thrown when the page type is not matched.
      */
-    protected short getPageType()
+    short getPageType()
             throws InvalidPropertiesFormatException {
         switch(getNodeType()) {
             case TREE_LEAF:             // LEAF
@@ -401,7 +436,7 @@ public abstract class TreeNode {
      *
      * @param r an *already* open pointer which points to our B+ Tree file
      * @param conf B+ Tree configuration
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails.
      */
     public abstract void writeNode(RandomAccessFile r, BPlusConfiguration conf,
                                    BPlusTreePerformanceCounter bPerf)

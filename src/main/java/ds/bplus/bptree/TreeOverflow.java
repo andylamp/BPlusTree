@@ -11,12 +11,13 @@ import java.util.LinkedList;
  * Although it is derived from the TreeNode class we *don't* use
  * the key array at all (this could be improved but... well...)
  */
-public class TreeOverflow extends TreeNode {
+@SuppressWarnings("unused")
+class TreeOverflow extends TreeNode {
 
 
+    private final LinkedList<String> valueList;
     private long nextPagePointer;
     private long prevPagePointer;
-    private final LinkedList<String> valueList;
 
     /**
      * Constructor which takes into the node type as well as the
@@ -26,36 +27,36 @@ public class TreeOverflow extends TreeNode {
      * @param prevPagePointer the previous leaf or overflow pointer
      * @param pageIndex the page index in the file
      */
-    public TreeOverflow(long nextPagePointer, long prevPagePointer,
-                        long pageIndex) {
+    TreeOverflow(long nextPagePointer, long prevPagePointer,
+                 long pageIndex) {
         super(TreeNodeType.TREE_LEAF_OVERFLOW, pageIndex);
         valueList = new LinkedList<>();
         this.nextPagePointer = nextPagePointer;
         this.prevPagePointer = prevPagePointer;
     }
 
-    public void pushToValueList(String value)
+    void pushToValueList(String value)
         {valueList.push(value);}
 
-    public String removeLastValue()
+    String removeLastValue()
         {return(valueList.removeLast());}
 
-    public void addToValueList(int index, String value)
+    void addToValueList(int index, String value)
         {valueList.add(index, value);}
 
-    public String getValueAt(int index)
+    String getValueAt(int index)
         {return valueList.get(index);}
 
-    public long getNextPagePointer()
+    long getNextPagePointer()
         {return(nextPagePointer);}
 
-    public void setNextPagePointer(long next)
+    void setNextPagePointer(long next)
         {nextPagePointer = next;}
 
-    public long getPrevPagePointer()
+    private long getPrevPagePointer()
         {return prevPagePointer;}
 
-    public void setPrevPagePointer(long prevPagePointer)
+    void setPrevPagePointer(long prevPagePointer)
         {this.prevPagePointer = prevPagePointer;}
 
 
@@ -69,7 +70,7 @@ public class TreeOverflow extends TreeNode {
      *  -- values -- (max size * satellite size)
      *
      * @param r pointer to *opened* B+ tree file
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     @Override
     public void writeNode(RandomAccessFile r, BPlusConfiguration conf,

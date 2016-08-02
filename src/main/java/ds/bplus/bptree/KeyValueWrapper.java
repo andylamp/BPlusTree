@@ -4,16 +4,11 @@ package ds.bplus.bptree;
  * Wrapper to conveniently return the (Key, Value) pair
  * without having to resort to "weird" solutions.
  */
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class KeyValueWrapper {
 
     private final long key;           // key
     private final String value;       // value
-
-    public long getKey()
-        {return key;}
-
-    public String getValue()
-        {return value;}
 
     /**
      * This is the only constructor... as we only
@@ -24,6 +19,14 @@ public class KeyValueWrapper {
     public KeyValueWrapper(long key, String value) {
         this.key = key;
         this.value = value;
+    }
+
+    public long getKey() {
+        return key;
+    }
+
+    public String getValue() {
+        return value;
     }
 
 

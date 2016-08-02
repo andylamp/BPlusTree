@@ -9,8 +9,8 @@ import java.io.IOException;
  * Wrapper class to run trials for a specific functionality
  *
  */
-
-public class TrialsClass {
+@SuppressWarnings("unused")
+class TrialsClass {
 
     /**
      * Run a search trial
@@ -21,11 +21,12 @@ public class TrialsClass {
      * @param unique want unique results?
      * @param bPerf performance class tied to a B+ Tree instance
      * @param verbose verbose results?
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runSearchTrial(int trials, int rmin, int rmax, boolean unique,
-                                      BPlusTreePerformanceCounter bPerf,
-                                      boolean verbose)
+    static void runSearchTrial(int trials, int rmin, int rmax, boolean unique,
+                               BPlusTreePerformanceCounter bPerf,
+                               boolean verbose)
             throws IOException, InvalidBTreeStateException {
 
         int pageReads = 0;
@@ -57,11 +58,12 @@ public class TrialsClass {
      * @param unique allow duplicate insertions?
      * @param bPerf performance class tied to a B+ Tree instance
      * @param verbose verbose results?
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runInsertTrial(int trials, int rmin, int rmax,
-                                      String value, boolean unique,
-                                      BPlusTreePerformanceCounter bPerf, boolean verbose)
+    static void runInsertTrial(int trials, int rmin, int rmax,
+                               String value, boolean unique,
+                               BPlusTreePerformanceCounter bPerf, boolean verbose)
             throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;
@@ -94,11 +96,12 @@ public class TrialsClass {
      * @param unique allow duplicate insertions?
      * @param bPerf performance class tied to a B+ Tree instance
      * @param verbose verbose results?
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runRangeQueryTrial(int trials, int rmin, int rmax, int range,
-                                          boolean unique, BPlusTreePerformanceCounter bPerf,
-                                          boolean verbose) throws IOException, InvalidBTreeStateException {
+    static void runRangeQueryTrial(int trials, int rmin, int rmax, int range,
+                                   boolean unique, BPlusTreePerformanceCounter bPerf,
+                                   boolean verbose) throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;
         int stats[];
@@ -128,10 +131,12 @@ public class TrialsClass {
      * @param unique delete the *first* found or *all* found?
      * @param bPerf performance class tied to a B+ Tree instance
      * @param verbose verbose results?
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
-    public static void runDeletionTrials(int trials, int rmin, int rmax, boolean unique,
-                                         BPlusTreePerformanceCounter bPerf,
-                                         boolean verbose)
+    static void runDeletionTrials(int trials, int rmin, int rmax, boolean unique,
+                                  BPlusTreePerformanceCounter bPerf,
+                                  boolean verbose)
             throws IOException, InvalidBTreeStateException {
         int pageReads = 0;
         int pageWrites = 0;

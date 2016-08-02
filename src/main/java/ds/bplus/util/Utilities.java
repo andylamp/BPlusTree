@@ -9,7 +9,7 @@ import java.util.Random;
 
 public class Utilities {
 
-    public static final Random rand = new Random();
+    private static final Random rand = new Random();
 
     /**
      * Returns a pseudo-random number between min and max, inclusive.
@@ -22,7 +22,7 @@ public class Utilities {
      * @see Random#nextInt(int)
      */
 
-    public static int randInt(int min, int max) {
+    static int randInt(int min, int max) {
         // nextInt is normally exclusive of the top value,
         // so add 1 to make it inclusive
         return rand.nextInt((max - min) + 1) + min;
@@ -35,17 +35,19 @@ public class Utilities {
      * @param val value to tie with the keys
      * @param unique allow duplicates?
      * @param bt B+ Tree instance
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     public static void sequentialAddToTree(long from, long to, String val,
                                            boolean unique, BPlusTree bt)
             throws IOException, InvalidBTreeStateException {
+        long div = (to - from) / 10;
         for(long i = from; i < to; i++) {
-            if(i%10000 == 0){
-                System.out.println("Currently at: " + i);
+            if (i % div == 0) {
+                System.out.println("Currently at: " + ((double) i / to) * 100 + " %");
             }
             bt.insertKey(i, val, unique);
         }
+        System.out.println("Done!\n");
     }
 
     /**
@@ -57,8 +59,8 @@ public class Utilities {
      * @param unique use unique values flag
      * @param bt tree instance to add the values
      * @return the list of the values in reverse order of insertion
-     * @throws IOException
-     * @throws InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     public static LinkedList<Long> fuzzyAddToTree(int from, int to,
                                       boolean unique, BPlusTree bt)
@@ -98,9 +100,9 @@ public class Utilities {
      * @param unique unique values?
      * @param bt tree to add the values
      * @return the list of the values in order of insertion
-     * @throws IOException
-     * @throws InvalidBTreeStateException
-     * @throws ClassNotFoundException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
+     * @throws ClassNotFoundException is thrown when the reflection is not able to find the correct class.
      */
     @SuppressWarnings("unused")
     public static LinkedList<Long> addToTreeFromList(String filename, boolean unique,
@@ -118,7 +120,7 @@ public class Utilities {
      *
      * @param obj Linked list to write
      * @param filename filename to dump the object
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     @SuppressWarnings("unused")
     public static void writeObjectToFile(LinkedList<Long> obj,
@@ -136,14 +138,15 @@ public class Utilities {
      *
      * @param filename file to load the object from
      * @return the object itself.
-     * @throws IOException
-     * @throws ClassNotFoundException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws ClassNotFoundException is thrown when the reflection is not able to find the correct class.
      */
-    public static LinkedList<Long> loadListFromFile(String filename)
+    private static LinkedList<Long> loadListFromFile(String filename)
             throws IOException, ClassNotFoundException {
         System.out.println("Loading LinkedList<Long> object from file: " + filename);
         FileInputStream fin = new FileInputStream(filename);
         ObjectInputStream finStream = new ObjectInputStream(fin);
+        @SuppressWarnings("unchecked")
         LinkedList<Long> l = (LinkedList<Long>)finStream.readObject();
         finStream.close();
         return l;
@@ -157,20 +160,23 @@ public class Utilities {
      * Taken from @preshing
      *
      */
+    @SuppressWarnings("unused")
     public static class randQPR {
         static final long prime = 4294967291L;
-        private long index;
         private final long inter_index;
-
-        public long permQPR(long x) {
-            if(x >= prime) {return x;}
-            long residue = (x * x) % prime;
-            return(x <= prime/2 ? residue : prime - residue);
-        }
+        private long index;
 
         public randQPR(long seed, long seedOffset) {
             index = permQPR(permQPR(seed) + 0x682f0161L);
             inter_index = permQPR(permQPR(seedOffset) + 0x46790905L);
+        }
+
+        long permQPR(long x) {
+            if (x >= prime) {
+                return x;
+            }
+            long residue = (x * x) % prime;
+            return (x <= prime / 2 ? residue : prime - residue);
         }
 
         public long next() {

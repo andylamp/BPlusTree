@@ -10,6 +10,7 @@ import java.util.InvalidPropertiesFormatException;
 import java.util.LinkedList;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("WeakerAccess")
 public class BPlusTree {
 
     private TreeNode root;
@@ -28,7 +29,7 @@ public class BPlusTree {
      * Super basic constructor, create everything using their
      * default values...
      *
-     * @throws IOException
+     * @throws IOException is thrown when we fail to open/create the binary tree file
      */
     @SuppressWarnings("unused")
     public BPlusTree() throws IOException, InvalidBTreeStateException {
@@ -46,7 +47,7 @@ public class BPlusTree {
      *
      * @param conf B+ Tree configuration instance
      * @param bPerf performance counter class
-     * @throws IOException
+     * @throws IOException is thrown when we fail to open/create the binary tree file
      */
     @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf,
@@ -67,7 +68,7 @@ public class BPlusTree {
      * @param conf B+ Tree configuration instance
      * @param mode mode of file opening
      * @param bPerf performance counter class
-     * @throws IOException
+     * @throws IOException is thrown when we fail to open/create the binary tree file
      */
     @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, String mode,
@@ -88,7 +89,7 @@ public class BPlusTree {
      * @param mode I/O mode
      * @param treeFilePath file path for the file
      * @param bPerf performance counter class
-     * @throws IOException
+     * @throws IOException is thrown when we fail to open/create the binary tree file
      */
     @SuppressWarnings("unused")
     public BPlusTree(BPlusConfiguration conf, String mode,
@@ -107,11 +108,15 @@ public class BPlusTree {
      * @param key key to add
      * @param value value of the key
      * @param unique allow duplicates for this run?
-     * @throws IOException
+     * @throws IOException is thrown when any of the read/write ops fail.
+     * @throws InvalidBTreeStateException is thrown when there is an inconsistency in the tree blocks.
+     * @throws IllegalStateException is thrown we have a null tree
+     * @throws NumberFormatException is thrown when we have an invalid key value (we only allow >= 0 as keys)
      */
     @SuppressWarnings("unused")
     public void insertKey(long key, String value, boolean unique)
-            throws IOException, InvalidBTreeStateException {
+            throws IOException, InvalidBTreeStateException,
+            IllegalStateException, NumberFormatException {
 
         if(root == null)
             {throw new IllegalStateException("Can't insert to null tree");}
@@ -126,15 +131,15 @@ public class BPlusTree {
             // allocate a new *internal* node, to be placed as the
             // *left* child of the new root
             aChild = this.root;
-            TreeInternalNode tbuf = new TreeInternalNode(TreeNodeType.TREE_ROOT_INTERNAL,
+            TreeInternalNode node_buf = new TreeInternalNode(TreeNodeType.TREE_ROOT_INTERNAL,
                     generateFirstAvailablePageIndex(conf));
-            tbuf.addPointerAt(0, aChild.getPageIndex());
-            this.root = tbuf;
+            node_buf.addPointerAt(0, aChild.getPageIndex());
+            this.root = node_buf;
 
             // split root.
-            splitTreeNode(tbuf, 0);
+            splitTreeNode(node_buf, 0);
             writeFileHeader(conf);
-            insertNonFull(tbuf, key, value, unique);
+            insertNonFull(node_buf, key, value, unique);
         }
         else
             {insertNonFull(root, key, value, unique);}
@@ -297,7 +302,8 @@ public class BPlusTree {
      * @param n node to add the page
      * @param index this is only used in the case of a leaf
      * @param value value to push in the new page
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there is an inconsistency in the blocks.
      */
     private void createOverflowPage(TreeNode n, int index, String value)
             throws IOException, InvalidBTreeStateException {
@@ -327,7 +333,7 @@ public class BPlusTree {
             novf.pushToValueList(value);
             novf.incrementCapacity(conf);
             // update overflow pointer to parent node
-            l.setOVerflowPointerAt(index, novf.getPageIndex());
+            l.setOverflowPointerAt(index, novf.getPageIndex());
             // set being deleted to false
             novf.setBeingDeleted(false);
             // commit changes to overflow page
@@ -346,6 +352,56 @@ public class BPlusTree {
     }
 
     /**
+     * Binary search implementation for tree blocks; if not found returns the lower/upper bound
+     * position instead based on `rank`.
+     * @param n node to search
+     * @param key key to search
+     * @param rank rank of the search (for lower/upper bound)
+     * @return the index of the bound or found key.
+     */
+    private int binSearchBlock(TreeNode n, long key, Rank rank) {
+        return binSearchRec(n, 0, n.getCurrentCapacity() - 1, key, rank);
+    }
+
+    /**
+     * Binary search implementation for tree blocks.
+     *
+     * @param n    node to search
+     * @param l    left (lower-part) array index
+     * @param r    right (upper-part) array index
+     * @param key  key to search
+     * @param rank rank of the search (for lower/upper bound)
+     * @return the index of the bound or found key.
+     */
+    private int binSearchRec(TreeNode n, int l, int r, long key, Rank rank) {
+        int m;
+        long mkey;
+
+        if (l > r) {
+            switch (rank) {
+                case Pred:
+                    return l == 0 ? l : l - 1;
+                case Succ:
+                    return l > 0 && l == n.getCurrentCapacity() ? l - 1 : l;
+                //case Exact: return l;
+                default:
+                    return l;
+            }
+        } else {
+            m = (l + r) / 2;
+            mkey = n.getKeyAt(m);
+        }
+
+        if (mkey < key) {
+            return binSearchRec(n, m + 1, r, key, rank);
+        } else if (mkey > key) {
+            return binSearchRec(n, l, m - 1, key, rank);
+        } else { // this is equal
+            return Rank.PlusOne == rank ? m + 1 : m;
+        }
+    }
+
+    /**
      * This function is inspired from the one given in CLRS for inserting a key to
      * a B-Tree but as splitTreeNode has been (heavily) modified in order to be used
      * in our B+ Tree. It supports handling duplicate keys (if enabled) as well.
@@ -356,14 +412,12 @@ public class BPlusTree {
      * @param key key to add
      * @param value value paired with the key
      * @param unique allow duplicate entries for this time?
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private void insertNonFull(TreeNode n, long key, String value, boolean unique)
             throws IOException, InvalidBTreeStateException {
         boolean useChild = true;
-        int i = n.getCurrentCapacity();
-        // descend down the node
-        while(i > 0 && key < n.getKeyAt(i-1)) {i--;}
+        int i = binSearchBlock(n, key, Rank.PlusOne);
         // check if we have a leaf
         if(n.isLeaf()) {
             TreeLeaf l = (TreeLeaf)n;
@@ -378,7 +432,6 @@ public class BPlusTree {
             // this is to adjust for a corner case due to indexing
             int iadj = (n.getCurrentCapacity() > 0 &&
                     i == 0 && n.getFirstKey() > key) ? i : i-1;
-
             if(n.getCurrentCapacity() > 0 && n.getKeyAt(iadj) == key) {
 
                 if(unique) {
@@ -487,7 +540,7 @@ public class BPlusTree {
      * @param l leaf which contains the key with the overflow page
      * @param index index of the key
      * @param res where to store the results
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private void parseOverflowPages(TreeLeaf l, int index, RangeResult res)
             throws IOException {
@@ -516,7 +569,7 @@ public class BPlusTree {
      * @param maxKey max key of the range
      * @param unique return only *first* encounter of the (Key, Value) pairs or all?
      * @return the results packed in a neat class for handling
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     public RangeResult rangeSearch(long minKey, long maxKey, boolean unique)
             throws IOException, InvalidBTreeStateException {
@@ -605,7 +658,8 @@ public class BPlusTree {
      * @param key key to match
      * @param unique return *all* matching (Key, Value) pairs or the *first* found
      * @return the search result
-     * @throws IOException, InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     @SuppressWarnings("unused")
     public SearchResult searchKey(long key, boolean unique)
@@ -613,7 +667,6 @@ public class BPlusTree {
         bPerf.incrementTotalSearches();
         return(searchKey(this.root, key, unique));
     }
-
 
     /**
      * This function performs the actual search as described in searchKey description
@@ -623,14 +676,12 @@ public class BPlusTree {
      * @param key key that we want to match
      * @param unique unique results?
      * @return the search result
-     * @throws IOException, InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private SearchResult searchKey(TreeNode node, long key, boolean unique)
             throws IOException {
-
-        int i = 0;
-
-        while(i < node.getCurrentCapacity() && key > node.getKeyAt(i)) {i++;}
+        // search for the key
+        int i = binSearchBlock(node, key, Rank.Exact);
 
         // check if we found it
         if(node.isLeaf()) {
@@ -691,13 +742,14 @@ public class BPlusTree {
      * @param key key to delete
      * @param unique unique deletions?
      * @return the number of deleted keys
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     @SuppressWarnings("unused")
     public DeleteResult deleteKey(long key, boolean unique)
     throws IOException, InvalidBTreeStateException  {
         if(root.isEmpty()) {
-            LinkedList<String> l = null;
-            return(new DeleteResult(key, l));
+            return (new DeleteResult(key, (LinkedList<String>) null));
         } else
             {return(deleteKey(root, null, -1, -1, key, unique));}
     }
@@ -713,6 +765,8 @@ public class BPlusTree {
      * @param key key to delete
      * @param unique unique deletions?
      * @return the number of deleted keys
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     public DeleteResult deleteKey(TreeNode current, TreeInternalNode parent,
                                   int parentPointerIndex, int parentKeyIndex,
@@ -724,14 +778,14 @@ public class BPlusTree {
             System.out.println("Parent needs merging (internal node)");
             TreeNode mres = mergeOrRedistributeTreeNodes(current, parent,
                     parentPointerIndex, parentKeyIndex);
-            if(mres != null)
-                {current = mres;}
+            if(mres != null) {
+                current = mres;
+            }
         }
 
-        int i = 0;
-        LinkedList<String> rvals = null;
-        while(i < current.getCurrentCapacity()-1 && key > current.getKeyAt(i)) {i++;}
-
+        LinkedList<String> rvals;
+        // search for the key
+        int i = binSearchBlock(current, key, Rank.Succ);
         // check if it's an internal node
         if(current.isInternalNode()) {
             // if it is, descend to a leaf
@@ -753,11 +807,11 @@ public class BPlusTree {
             if(i == l.getCurrentCapacity()) {
                 System.out.println("Key with value: " + key +
                         " not found, reached limits");
-                return (new DeleteResult(key, rvals));
+                return (new DeleteResult(key, (LinkedList<String>) null));
             } else if(key != l.getKeyAt(i)) {
                 System.out.println("Key with value: " + key + " not found, key mismatch");
                 //throw new InvalidBTreeStateException("Key not found!");
-                return (new DeleteResult(key, rvals));
+                return (new DeleteResult(key, (LinkedList<String>) null));
             }
             else {
 
@@ -788,8 +842,8 @@ public class BPlusTree {
 
                         // if the page is empty, delete it.
                         if(povf.isEmpty()) {
-                            if(ovf == null) {
-                                l.setOVerflowPointerAt(i, -1L);
+                            if (ovf == null) {
+                                l.setOverflowPointerAt(i, -1L);
                                 l.writeNode(treeFile, conf, bPerf);
                             }
                             else {
@@ -841,7 +895,6 @@ public class BPlusTree {
         return(new DeleteResult(key, rvals));
     }
 
-
     /**
      * Check if the node has the specified parent
      *
@@ -861,7 +914,7 @@ public class BPlusTree {
      *
      * @param with node to check the capacity
      * @return the number of positions to check
-     * @throws InvalidBTreeStateException
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private int canRedistribute(TreeNode with)
             throws InvalidBTreeStateException {
@@ -936,6 +989,8 @@ public class BPlusTree {
      * @param left if left is true, then we use prev leaf else next
      * @param parent the internal node parenting both
      * @param parentKeyIndex index of the parent that refers to this pair
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void redistributeNodes(TreeLeaf to, TreeLeaf with,
                                    boolean left, TreeInternalNode parent,
@@ -1010,6 +1065,8 @@ public class BPlusTree {
      * @param left if left is true, then we use prev leaf else next
      * @param parent the internal node parenting both
      * @param parentKeyIndex index of the parent that refers to this pair
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void redistributeNodes(TreeInternalNode to, TreeInternalNode with,
                                    boolean left, TreeInternalNode parent,
@@ -1038,7 +1095,6 @@ public class BPlusTree {
         with.writeNode(treeFile, conf, bPerf);
         parent.writeNode(treeFile, conf, bPerf);
     }
-
 
     /**
      * Function that merges two leaves together; in this case we *must*
@@ -1075,6 +1131,8 @@ public class BPlusTree {
      * @param other the other cached node
      * @param parent parent of both leaves (internal node)
      * @param parentPointerIndex index of parent that has these two pointers
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private TreeNode mergeNodes(TreeLeaf left, TreeLeaf right, TreeLeaf other,
                             TreeInternalNode parent, int parentPointerIndex,
@@ -1091,35 +1149,13 @@ public class BPlusTree {
         right.setBeingDeleted(true);
         // join the two leaves together.
         int cap = right.getCurrentCapacity();
-        for(int i = 0; i < cap; i++) {
-            left.addLastToOverflowList(right.popOverflowPointer());
-            left.addLastToValueList(right.popValue());
-            left.addLastToKeyArray(right.popKey());
-            left.incrementCapacity(conf);
-            right.decrementCapacity(conf);
-        }
+        joinLeaves(left, right, cap);
 
         // update the next pointers
         left.setNextPagePointer(right.getNextPagePointer());
         // now fix the top pointer
-        if(useNextPointer) {
-            if(isLeftOfNext) {
-                parent.removeKeyAt(parentKeyIndex+1);
-                parent.removePointerAt(parentPointerIndex+1);
-            } else {
-                parent.removeKeyAt(parentKeyIndex);
-                parent.removePointerAt(parentPointerIndex+1);
-            }
-        } else {
-            if(isLeftOfNext) {
-                parent.removeKeyAt(parentKeyIndex);
-                parent.removePointerAt(parentPointerIndex);
-            } else {
-                parent.removeKeyAt(parentKeyIndex);
-                parent.removePointerAt(parentPointerIndex);
-                parent.setKeyArrayAt(parentKeyIndex-1, other.getFirstKey());
-            }
-        }
+        fixTheTopPointer(other, parent, parentPointerIndex,
+                parentKeyIndex, isLeftOfNext, useNextPointer);
 
         // update capacity as in both cases we remove a value
         parent.decrementCapacity(conf);
@@ -1138,7 +1174,47 @@ public class BPlusTree {
         // remove the page
         deletePage(right.getPageIndex(), false);
         // finally return the node reference
-        return(left);
+        return (left);
+    }
+
+    private void fixTheTopPointer(TreeNode other, TreeInternalNode parent,
+                                  int parentPointerIndex, int parentKeyIndex,
+                                  boolean isLeftOfNext, boolean useNextPointer) {
+        if (useNextPointer) {
+            if (isLeftOfNext) {
+                parent.removeKeyAt(parentKeyIndex + 1);
+                parent.removePointerAt(parentPointerIndex + 1);
+            } else {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex + 1);
+            }
+        } else {
+            if (isLeftOfNext) {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex);
+            } else {
+                parent.removeKeyAt(parentKeyIndex);
+                parent.removePointerAt(parentPointerIndex);
+                parent.setKeyArrayAt(parentKeyIndex - 1, other.getFirstKey());
+            }
+        }
+    }
+
+    /**
+     * @param left  left leaf
+     * @param right right leaf
+     * @param cap   max capacity of the leaf
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
+     */
+    private void joinLeaves(TreeLeaf left, TreeLeaf right, int cap)
+            throws InvalidBTreeStateException {
+        for (int i = 0; i < cap; i++) {
+            left.addLastToOverflowList(right.popOverflowPointer());
+            left.addLastToValueList(right.popValue());
+            left.addLastToKeyArray(right.popKey());
+            left.incrementCapacity(conf);
+            right.decrementCapacity(conf);
+        }
     }
 
     /**
@@ -1146,20 +1222,15 @@ public class BPlusTree {
      *
      * @param left node that merge ends
      * @param right node that is deleted during merge
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void mergeNodes(TreeLeaf left, TreeLeaf right)
             throws IOException, InvalidBTreeStateException {
         right.setBeingDeleted(true);
         // join the two leaves together.
         int cap = right.getCurrentCapacity();
-        for(int i = 0; i < cap; i++) {
-            left.addLastToOverflowList(right.popOverflowPointer());
-            left.addLastToValueList(right.popValue());
-            left.addLastToKeyArray(right.popKey());
-            left.incrementCapacity(conf);
-            right.decrementCapacity(conf);
-        }
+        joinLeaves(left, right, cap);
 
         // remove the page
         deletePage(right.getPageIndex(), false);
@@ -1184,6 +1255,8 @@ public class BPlusTree {
      * @param right right-most internal node to merge
      * @param parent parent of both internal nodes.
      * @param parentPointerIndex index of the parent that has these two pointers
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private TreeNode mergeNodes(TreeInternalNode left, TreeInternalNode right,
                             TreeInternalNode other, TreeInternalNode parent,
@@ -1209,12 +1282,7 @@ public class BPlusTree {
         right.setBeingDeleted(true);
 
         int cap = right.getCurrentCapacity();
-        for(int i = 0; i < cap; i++) {
-            left.addLastToKeyArray(right.popKey());
-            left.addPointerLast(right.popPointer());
-            left.incrementCapacity(conf);
-            right.decrementCapacity(conf);
-        }
+        joinInternalNodes(left, right, cap);
         // pump the last pointer as well
         left.addPointerLast(right.popPointer());
         // now increment the capacity as well
@@ -1223,24 +1291,8 @@ public class BPlusTree {
 
 
         // now fix the top pointer
-        if(useNextPointer) {
-            if(isLeftOfNext) {
-                parent.removeKeyAt(parentKeyIndex+1);
-                parent.removePointerAt(parentPointerIndex+1);
-            } else {
-                parent.removeKeyAt(parentKeyIndex);
-                parent.removePointerAt(parentPointerIndex+1);
-            }
-        } else {
-            if(isLeftOfNext) {
-                parent.removeKeyAt(parentKeyIndex);
-                parent.removePointerAt(parentPointerIndex);
-            } else {
-                parent.removeKeyAt(parentKeyIndex);
-                parent.removePointerAt(parentPointerIndex);
-                parent.setKeyArrayAt(parentKeyIndex-1, other.getFirstKey());
-            }
-        }
+        fixTheTopPointer(other, parent, parentPointerIndex,
+                parentKeyIndex, isLeftOfNext, useNextPointer);
 
         // update capacity as in both cases we remove a value
         parent.decrementCapacity(conf);
@@ -1260,19 +1312,15 @@ public class BPlusTree {
      *
      * @param left node that merge ends
      * @param right node that is deleted during merge
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void mergeNodes(TreeInternalNode left, TreeInternalNode right, long midKey)
             throws IOException, InvalidBTreeStateException {
         right.setBeingDeleted(true);
         left.addLastToKeyArray(midKey);
         int cap = right.getCurrentCapacity();
-        for(int i = 0; i < cap; i++) {
-            left.addLastToKeyArray(right.popKey());
-            left.addPointerLast(right.popPointer());
-            left.incrementCapacity(conf);
-            right.decrementCapacity(conf);
-        }
+        joinInternalNodes(left, right, cap);
 
         // pump the last pointer as well
         left.addPointerLast(right.popPointer());
@@ -1280,6 +1328,22 @@ public class BPlusTree {
 
         // finally remove the page
         deletePage(right.getPageIndex(), false);
+    }
+
+    /**
+     * @param left  left node
+     * @param right right node
+     * @param cap   max capacity of the node
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
+     */
+    private void joinInternalNodes(TreeInternalNode left, TreeInternalNode right, int cap)
+            throws InvalidBTreeStateException {
+        for (int i = 0; i < cap; i++) {
+            left.addLastToKeyArray(right.popKey());
+            left.addPointerLast(right.popPointer());
+            left.incrementCapacity(conf);
+            right.decrementCapacity(conf);
+        }
     }
 
     /**
@@ -1292,8 +1356,8 @@ public class BPlusTree {
      * @param parentPointerIndex pointer index to mnode in parent
      * @param parentKeyIndex key index that has mnode as a child in parent
      * @return the updated mnode
-     * @throws IOException
-     * @throws InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     public TreeNode mergeOrRedistributeTreeNodes(TreeNode mnode, TreeInternalNode parent,
                                              int parentPointerIndex, int parentKeyIndex)
@@ -1335,8 +1399,8 @@ public class BPlusTree {
      *
      * @param mnode root node
      * @return the root node
-     * @throws IOException
-     * @throws InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private TreeNode handleRootRedistributionOrMerging(TreeNode mnode)
             throws IOException, InvalidBTreeStateException {
@@ -1464,8 +1528,8 @@ public class BPlusTree {
      * @param parentPointerIndex parent pointer index
      * @param parentKeyIndex parent key index that mnode is child
      * @return the updated node (if any updates are made)
-     * @throws IOException
-     * @throws InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private TreeNode handleLeafNodeRedistributionOrMerging(TreeNode mnode,
                                                            TreeInternalNode parent,
@@ -1560,7 +1624,7 @@ public class BPlusTree {
      * @param prev previous leaf
      * @param split current leaf (split node)
      * @param next next leaf
-     * @throws InvalidBTreeStateException
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void validateNeighbours(TreeLeaf prev, TreeLeaf split, TreeLeaf next)
             throws InvalidBTreeStateException {
@@ -1589,8 +1653,8 @@ public class BPlusTree {
      * @param parentPointerIndex parent pointer index
      * @param parentKeyIndex parent key index that mnode is child
      * @return the updated node (if any updates are made)
-     * @throws IOException
-     * @throws InvalidBTreeStateException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private TreeNode handleInternalNodeRedistributionOrMerging(TreeNode mnode,
                                                                TreeInternalNode parent,
@@ -1681,7 +1745,8 @@ public class BPlusTree {
      * Function that initially creates the tree. Here we always
      * create a Leaf that acts as our Root, until we split it.
      * @return the initial (leaf) tree root.
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private TreeNode createTree() throws IOException, InvalidBTreeStateException {
         if(root == null) {
@@ -1696,7 +1761,6 @@ public class BPlusTree {
         return(root);
     }
 
-
     /**
      * Map the short value to an actual node type enumeration value.
      * This paradoxically is the opposite of that we do in the similarly named
@@ -1704,7 +1768,7 @@ public class BPlusTree {
      *
      * @param pval a value read from the file indicating which type of node this is
      * @return nodeType equivalent
-     * @throws InvalidPropertiesFormatException
+     * @throws InvalidPropertiesFormatException is thrown when the node is of an unknown type
      */
     private TreeNodeType getPageType(short pval)
             throws InvalidPropertiesFormatException {
@@ -1751,7 +1815,8 @@ public class BPlusTree {
      * this can be done after each deletion or more unsafely
      * before committing the file changes at the end.
      *
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void commitLookupPage() throws IOException, InvalidBTreeStateException {
 
@@ -1791,7 +1856,6 @@ public class BPlusTree {
             }
         } else {
             int written = 0;
-            // check how many pages we need
             int rest = (freeSlotPool.size() - conf.getFirstLookupPageElements()),
                     // go past the header chunk
                     poolIndex = conf.getFirstLookupPageElements();
@@ -1800,19 +1864,17 @@ public class BPlusTree {
             cap = conf.getMaxLookupPageOverflowCapacity();
             // calculate the number of pages needed
             int pages = (int) Math.ceil(rest / ((double) cap));
-            pages = (int) Math.ceil((rest - pages) / ((double) cap));
-
 
             for (i = 0; i < pages; i++) {
                 lookupPagesPool.add(freeSlotPool.removeFirst());
             }
+
             // the ending pointer
             lookupPagesPool.add(-1L);
             // get the smallest page available
             firstPoolNextPointer = lookupPagesPool.getFirst();
             // write all the pages
             for (i = 0; i < pages; i++) {
-
                 // create the page
                 lpOvf = createOverflowLookupPage(lookupPagesPool.get(i),
                         lookupPagesPool.get(i + 1));
@@ -1860,7 +1922,7 @@ public class BPlusTree {
      * This function adjust the file length by purging the high index pages that
      * are used. Low index pages are purged last by design.
      *
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private void conditionFileLength() throws IOException {
         Collections.sort(freeSlotPool);
@@ -1888,7 +1950,7 @@ public class BPlusTree {
      *
      * @param index index of the page in the file
      * @return a TreeNode object referencing to the loaded page
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private TreeNode readNode(long index) throws IOException {
 
@@ -2006,14 +2068,14 @@ public class BPlusTree {
                 nt == TreeNodeType.TREE_ROOT_LEAF);
     }
 
-
     /**
      * Reads an existing file and generates a B+ configuration based on the stored values
      *
      * @param r file to read from
      * @param generateConf generate configuration?
      * @return new configuration based on read values (if enabled) or null
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private BPlusConfiguration readFileHeader(RandomAccessFile r, boolean generateConf)
             throws IOException, InvalidBTreeStateException {
@@ -2074,12 +2136,11 @@ public class BPlusTree {
             {return(null);}
     }
 
-
     /**
      * Writes the file header containing all the juicy details
      *
      * @param conf valid configuration
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private void writeFileHeader(BPlusConfiguration conf)
             throws IOException {
@@ -2102,7 +2163,8 @@ public class BPlusTree {
      * @param path file path
      * @param mode mode of opening (basically to truncate it or not)
      * @param opt configuration reference
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     private void openFile(String path, String mode, BPlusConfiguration opt)
             throws IOException, InvalidBTreeStateException {
@@ -2136,7 +2198,8 @@ public class BPlusTree {
      * Just commit the tree by actually closing the FD
      * thus flushing the buffers.
      *
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
+     * @throws InvalidBTreeStateException is thrown when there are inconsistencies in the blocks.
      */
     public void commitTree() throws IOException, InvalidBTreeStateException {
         commitLookupPage();
@@ -2151,7 +2214,7 @@ public class BPlusTree {
      * we load it into memory for further use.
      *
      * @param exists flag to indicate if the file already exists
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private void initializeLookupPage(boolean exists) throws IOException {
         // get to the beginning of the file after the header
@@ -2220,7 +2283,7 @@ public class BPlusTree {
      * Commit the page count and the max offset in the file
      *
      * @param conf B+ configuration reference
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     private void updatePageIndexCounts(BPlusConfiguration conf) throws IOException {
         treeFile.seek(conf.getPageCountOffset());
@@ -2236,7 +2299,6 @@ public class BPlusTree {
     @SuppressWarnings("unused")
     public BPlusConfiguration getTreeConfiguration()
         {return(conf);}
-
 
     /**
      * Return the current performance class tied to our instance
@@ -2266,8 +2328,22 @@ public class BPlusTree {
      * @return max number of pages that the file has
      */
     @SuppressWarnings("unused")
-    public long getMaxPageNumber()
-        {return maxPageNumber;}
+    public long getMaxPageNumber() {
+        return maxPageNumber;
+    }
+
+    /**
+     * Handy method to initialize common variables
+     */
+    private void initializeCommon() {
+        this.totalTreePages = 0L;
+        this.maxPageNumber = 0L;
+        this.deleteIterations = 0;
+        this.firstPoolNextPointer = -1L;
+        this.freeSlotPool = new LinkedList<>();
+        this.lookupPagesPool = new LinkedList<>();
+        this.bPerf.setBTree(this);
+    }
 
     //TODO I will get around to do this sometime.
 //    @SuppressWarnings("unused")
@@ -2284,21 +2360,6 @@ public class BPlusTree {
 //            }
 //        }
 //    }
-
-    /**
-     *
-     * Handy method to initialize common variables
-     *
-     */
-    private void initializeCommon() {
-        this.totalTreePages = 0L;
-        this.maxPageNumber = 0L;
-        this.deleteIterations = 0;
-        this.firstPoolNextPointer = -1L;
-        this.freeSlotPool = new LinkedList<>();
-        this.lookupPagesPool = new LinkedList<>();
-        this.bPerf.setBTree(this);
-    }
 
     /**
      * Delete the page
@@ -2330,7 +2391,7 @@ public class BPlusTree {
      * Helper to print the node
      *
      * @param index index of the node to read and print.
-     * @throws IOException
+     * @throws IOException is thrown when an I/O operation fails
      */
     @SuppressWarnings("unused")
     public void printNodeAt(long index) throws IOException {
@@ -2347,7 +2408,6 @@ public class BPlusTree {
             }
         }
     }
-
 
     /**
      * Condition the given string to match the entry size.
@@ -2377,5 +2437,8 @@ public class BPlusTree {
         }
         return(s);
     }
+
+
+    private enum Rank {Pred, Succ, PlusOne, Exact}
 
 }
