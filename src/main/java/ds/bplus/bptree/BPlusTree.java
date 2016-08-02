@@ -1405,10 +1405,12 @@ public class BPlusTree {
     private TreeNode handleRootRedistributionOrMerging(TreeNode mnode)
             throws IOException, InvalidBTreeStateException {
         if(mnode.isInternalNode()) {
-            System.out.println("\n -- Check if Consolidating Root required");
+            //System.out.println("\n -- Check if Consolidating Root required");
 
-            if(mnode.getCurrentCapacity() > 1)
-                {System.out.println("\n -- Root size > 2, no consolidation"); return root;}
+            if (mnode.getCurrentCapacity() > 1) {
+                //System.out.println("\n -- Root size > 2, no consolidation");
+                return root;
+            }
 
             TreeInternalNode splitNode = (TreeInternalNode)mnode;
             // read up their pointers
@@ -1727,7 +1729,7 @@ public class BPlusTree {
         }
         // can't redistribute; merging needs to happen, check which has t-1 elements
         else {
-            System.out.println(" -- Internal merging actually happens");
+            //System.out.println(" -- Internal merging actually happens");
             // check if we can merge with the right node
             if(nptr != null && nptr.isTimeToMerge(conf)) {
                 mnode = mergeNodes(splitNode, nptr, pptr, parent,
