@@ -1,3 +1,5 @@
+![build](https://travis-ci.org/andylamp/BPlusTree.svg?branch=master)
+
 # A Purely *On-Disk*  Implementation of a B+ Tree
 
 
