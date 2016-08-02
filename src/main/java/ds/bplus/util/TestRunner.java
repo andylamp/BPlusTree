@@ -58,7 +58,7 @@ public class TestRunner {
     @SuppressWarnings("unused")
     public static void runDefaultTrialsFast(BPlusTreePerformanceCounter bPerf)
             throws IOException, InvalidBTreeStateException {
-        int trials = 2000;
+        int trials = 4000;
         int vmin = 1;
         int vmax = 99999;
         //boolean verbose = false;
