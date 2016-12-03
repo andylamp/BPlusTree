@@ -4,7 +4,7 @@
 
 
 After quite a few hours that included developing the thing as well as testing it here is
-a (fully) functional implementation of a B+ Tree data structure purely **on the disk**. 
+a (fully) functional implementation of a B+ Tree data structure purely ***on the disk***. 
 This was developed mostly for educational reasons that stemmed from the fact that I could not
  find a B+ Tree implementation that met the following:
  
