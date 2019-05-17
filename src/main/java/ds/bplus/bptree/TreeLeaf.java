@@ -122,7 +122,7 @@ class TreeLeaf extends TreeNode {
 
         // update root index in the file
         if(this.isRoot()) {
-            r.seek(conf.getHeaderSize()-8L);
+            r.seek(conf.getHeaderSize()-16L);
             r.writeLong(getPageIndex());
         }
 
