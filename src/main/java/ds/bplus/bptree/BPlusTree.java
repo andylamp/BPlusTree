@@ -1494,12 +1494,12 @@ public class BPlusTree {
 
 
                 if(nnum > 0) {
-                    redistributeNodes(lIntNode, rIntNode, true, rNode, 0);
+                    redistributeNodes(lIntNode, rIntNode, false, rNode, 0);
                 }
                 // now check if we can redistribute with prev
                 else if(pnum > 0) {
                     //System.out.println("\t -- Redistributing right with elements from left");
-                    redistributeNodes(rIntNode, lIntNode, false, rNode, 0);
+                    redistributeNodes(rIntNode, lIntNode, true, rNode, 0);
                 }
                 // merge the two nodes and promote them to root
                 else {
