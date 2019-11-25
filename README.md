@@ -1,4 +1,6 @@
 ![build](https://travis-ci.org/andylamp/BPlusTree.svg?branch=master)
+![Maven](https://github.com/andylamp/BPlusTree/workflows/Java%20CI/badge.svg)
+
 
 # A Purely *On-Disk*  Implementation of a B+ Tree
 
