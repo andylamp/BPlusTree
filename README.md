@@ -104,8 +104,7 @@ we again use more space, usually).
 
 # License
 
-This work is licensed under the GPLv3 license... so that others can view, modify and expand this,
-should they so desire.
+This work, at its current version, is licensed under the Apache 2.0 license.
 
 # Final words
 
