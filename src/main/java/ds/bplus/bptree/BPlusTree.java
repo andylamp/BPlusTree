@@ -1563,7 +1563,6 @@ public class BPlusTree {
 
         int nnum = canRedistribute(nptr);
         int pnum = canRedistribute(pptr);
-        int snum = canRedistribute(splitNode);
         boolean isLeftOfNext = (parentPointerIndex > parentKeyIndex);
         boolean splitNodeIsLeftChild = parentKeyIndex == parentPointerIndex;
 
@@ -1586,22 +1585,6 @@ public class BPlusTree {
                 redistributeNodes(splitNode, pptr, true, parent, parentKeyIndex-1);
             } else {
                 redistributeNodes(splitNode, pptr, true, parent, parentKeyIndex);
-            }
-        } else if(snum > 0) {
-            if(nptr != null) {
-                //System.out.println("\t -- Redistributing next node with elements from split");
-                if(splitNodeIsLeftChild) {
-                    redistributeNodes(nptr, splitNode, true, parent, parentKeyIndex);
-                } else {
-                    redistributeNodes(nptr, splitNode, true, parent, parentKeyIndex+1);
-                }
-            } else {
-                //System.out.println("\t -- Redistributing prev with elements from split");
-                if(splitNodeIsLeftChild) {
-                    redistributeNodes(pptr, splitNode, false, parent, parentKeyIndex-1);
-                } else {
-                    redistributeNodes(pptr, splitNode, false, parent, parentKeyIndex);
-                }
             }
         }
         // we can't redistribute, try merging with next
