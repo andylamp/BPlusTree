@@ -102,6 +102,16 @@ all of the available pages so far; this in turn let's us create an index very fa
 without having to pay costly reads if we wanted to have a clustered tree (although
 we again use more space, usually).
 
+## Payload sizes
+
+Due to inherent limitations of how B+ Tree is designed to work the payload contained
+within each entry must be of a specific size. This can be configured at initialization
+but cannot be changed after creation. 
+
+This means that if the payload is _less_ than the entry size it will be padded with
+whitespaces to fill in the bucket whereas if it is _more_ it will be truncuated to
+the size of the bucket.
+
 # License
 
 This work, at its current version, is licensed under the Apache 2.0 license.
